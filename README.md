@@ -150,7 +150,7 @@ medeval/
 
 ## 🧪 Development & Testing
 
-[![CI Pipeline](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml)
 
 Ensure style alignment and type safety before committing changes. The GitHub Actions CI pipeline automatically runs these checks on every pull request.
 
