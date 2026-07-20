@@ -1,21 +1,21 @@
 """
 medeval/safety/__init__.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Public API for the medeval safety sub-package.
+Public API for the medeval safety package.
 
-Exposes the domain-specific clinical safety checkers so users can import
-directly from ``medeval.safety`` without navigating sub-modules.
-
-Example:
-    >>> from medeval.safety import SickleCellSafetyChecker
-    >>> checker = SickleCellSafetyChecker()
-    >>> checker.check_contraindications("Apply ice packs to the affected limb.")
-    ['CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION']
+Exposes base abstract classes, the composite SafetySuite, and domain-specific
+safety checkers (Sickle Cell, Cardiology).
 """
 
-from .sickle_cell import SickleCellSafetyChecker, SafetyViolation
+from .base import BaseSafetyChecker, SafetyViolation
+from .cardiology import CardiologySafetyChecker
+from .sickle_cell import SickleCellSafetyChecker
+from .suite import SafetySuite
 
 __all__ = [
-    "SickleCellSafetyChecker",
+    "BaseSafetyChecker",
     "SafetyViolation",
+    "SafetySuite",
+    "SickleCellSafetyChecker",
+    "CardiologySafetyChecker",
 ]
