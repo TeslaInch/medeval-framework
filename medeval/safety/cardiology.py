@@ -14,7 +14,8 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import ClassVar, Dict, List, Pattern
+from re import Pattern
+from typing import ClassVar
 
 from .base import BaseSafetyChecker, SafetyViolation
 
@@ -25,15 +26,15 @@ logger = logging.getLogger(__name__)
 class CardiologySafetyRule:
     """An individual clinical safety rule applied by ``CardiologySafetyChecker``."""
 
-    pattern: Pattern[str]  # type: ignore[type-arg]
+    pattern: Pattern[str]
     violation_code: str
     severity: str
     rationale: str
 
 
-def _build_rules() -> List[CardiologySafetyRule]:
+def _build_rules() -> list[CardiologySafetyRule]:
     """Compile and return the cardiology safety rule set."""
-    raw_rules: List[Dict[str, str]] = [
+    raw_rules: list[dict[str, str]] = [
         # --- CRITICAL: Beta-blockers in Acute Decompensated Heart Failure (ADHF) ---
         {
             "pattern": (
@@ -84,7 +85,7 @@ def _build_rules() -> List[CardiologySafetyRule]:
         },
     ]
 
-    compiled: List[CardiologySafetyRule] = []
+    compiled: list[CardiologySafetyRule] = []
     for rule in raw_rules:
         compiled.append(
             CardiologySafetyRule(
@@ -103,9 +104,9 @@ class CardiologySafetyChecker(BaseSafetyChecker):
     Implements the ``BaseSafetyChecker`` interface.
     """
 
-    _RULES: ClassVar[List[CardiologySafetyRule]] = _build_rules()
+    _RULES: ClassVar[list[CardiologySafetyRule]] = _build_rules()
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Scan text and return rule violation code strings.
 
         Args:
@@ -120,7 +121,7 @@ class CardiologySafetyChecker(BaseSafetyChecker):
         violations = self.check_contraindications_detailed(text)
         return [v.code for v in violations]
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Scan text and return detailed structured SafetyViolation records.
 
         Args:
@@ -132,7 +133,7 @@ class CardiologySafetyChecker(BaseSafetyChecker):
         if not isinstance(text, str):
             raise ValueError(f"text must be a string. Got {type(text).__name__!r}.")
 
-        found: List[SafetyViolation] = []
+        found: list[SafetyViolation] = []
         for rule in self._RULES:
             match = rule.pattern.search(text)
             if match is not None:

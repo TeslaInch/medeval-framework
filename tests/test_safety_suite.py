@@ -9,12 +9,9 @@ and custom checker registration.
 
 from __future__ import annotations
 
-from typing import List
-
 import pytest
 
 from medeval.safety import BaseSafetyChecker, SafetySuite, SafetyViolation
-
 
 # ---------------------------------------------------------------------------
 # Mock Safety Checkers for Testing
@@ -24,13 +21,13 @@ from medeval.safety import BaseSafetyChecker, SafetySuite, SafetyViolation
 class MockCardiologyChecker(BaseSafetyChecker):
     """Mock cardiology safety checker."""
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Mock check returning a single cardiolody fail code."""
         if "beta-blocker" in text:
             return ["CRITICAL_SAFETY_FAIL:BETA_BLOCKER_IN_ACUTE_HF"]
         return []
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Mock detailed check."""
         if "beta-blocker" in text:
             return [
@@ -47,9 +44,9 @@ class MockCardiologyChecker(BaseSafetyChecker):
 class MockPharmacologyChecker(BaseSafetyChecker):
     """Mock pharmacology safety checker."""
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Mock check returning duplicate and distinct codes."""
-        res: List[str] = []
+        res: list[str] = []
         if "NSAID" in text:
             res.append("WARNING:NSAID_RENAL_RISK_IN_SCD")
         if "beta-blocker" in text:
@@ -57,9 +54,9 @@ class MockPharmacologyChecker(BaseSafetyChecker):
             res.append("CRITICAL_SAFETY_FAIL:BETA_BLOCKER_IN_ACUTE_HF")
         return res
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Mock detailed check."""
-        res: List[SafetyViolation] = []
+        res: list[SafetyViolation] = []
         if "NSAID" in text:
             res.append(
                 SafetyViolation(
@@ -84,11 +81,11 @@ class MockPharmacologyChecker(BaseSafetyChecker):
 class MockFailingChecker(BaseSafetyChecker):
     """Mock safety checker that throws exceptions to verify suite resilience."""
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Throw a RuntimeError."""
         raise RuntimeError("Fatal database connection error.")
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Throw a RuntimeError."""
         raise RuntimeError("Fatal database connection error.")
 

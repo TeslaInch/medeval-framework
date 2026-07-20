@@ -39,8 +39,9 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import ClassVar, Dict, List, Pattern
+from dataclasses import dataclass
+from re import Pattern
+from typing import ClassVar
 
 from .base import BaseSafetyChecker, SafetyViolation
 
@@ -65,7 +66,7 @@ class SafetyRule:
         rationale: Clinical explanation surfaced in :class:`SafetyViolation`.
     """
 
-    pattern: Pattern[str]  # type: ignore[type-arg]
+    pattern: Pattern[str]
     violation_code: str
     severity: str
     rationale: str
@@ -75,14 +76,15 @@ class SafetyRule:
 # Rule definitions
 # ---------------------------------------------------------------------------
 
-def _build_rules() -> List[SafetyRule]:
+
+def _build_rules() -> list[SafetyRule]:
     """Compile and return the complete SCD safety rule set.
 
     Returns:
         A list of :class:`SafetyRule` objects ready for use by
         :class:`SickleCellSafetyChecker`.
     """
-    raw_rules: List[Dict[str, str]] = [
+    raw_rules: list[dict[str, str]] = [
         # --- CRITICAL: Cold / vasoconstriction during VOC ---
         {
             "pattern": (
@@ -196,7 +198,7 @@ def _build_rules() -> List[SafetyRule]:
         },
     ]
 
-    compiled: List[SafetyRule] = []
+    compiled: list[SafetyRule] = []
     for rule_def in raw_rules:
         compiled.append(
             SafetyRule(
@@ -242,9 +244,9 @@ class SickleCellSafetyChecker(BaseSafetyChecker):
     """
 
     # Class-level compiled rule set — shared across all instances.
-    _RULES: ClassVar[List[SafetyRule]] = _build_rules()
+    _RULES: ClassVar[list[SafetyRule]] = _build_rules()
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Scan ``text`` for SCD contraindications and return violation codes.
 
         This is the primary interface for pipeline integration. Returns only
@@ -268,14 +270,12 @@ class SickleCellSafetyChecker(BaseSafetyChecker):
             ['CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION']
         """
         if not isinstance(text, str):
-            raise ValueError(
-                f"'text' must be a string. Got: {type(text).__name__!r}."
-            )
+            raise ValueError(f"'text' must be a string. Got: {type(text).__name__!r}.")
 
         violations = self.check_contraindications_detailed(text)
         return [v.code for v in violations]
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Scan ``text`` and return full :class:`SafetyViolation` records.
 
         Provides richer output than :meth:`check_contraindications`, including
@@ -295,11 +295,9 @@ class SickleCellSafetyChecker(BaseSafetyChecker):
             ValueError: If ``text`` is not a string.
         """
         if not isinstance(text, str):
-            raise ValueError(
-                f"'text' must be a string. Got: {type(text).__name__!r}."
-            )
+            raise ValueError(f"'text' must be a string. Got: {type(text).__name__!r}.")
 
-        found: List[SafetyViolation] = []
+        found: list[SafetyViolation] = []
 
         for rule in self._RULES:
             match = rule.pattern.search(text)
@@ -325,7 +323,7 @@ class SickleCellSafetyChecker(BaseSafetyChecker):
         return found
 
     @classmethod
-    def list_rules(cls) -> List[Dict[str, str]]:
+    def list_rules(cls) -> list[dict[str, str]]:
         """Return a human-readable summary of all active safety rules.
 
         Useful for documentation, auditing, and UI display.

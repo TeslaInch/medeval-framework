@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -40,7 +39,7 @@ class BaseSafetyChecker(ABC):
     """
 
     @abstractmethod
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Scan text for clinical safety violations and return violation codes.
 
         Args:
@@ -51,7 +50,7 @@ class BaseSafetyChecker(ABC):
         """
 
     @abstractmethod
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Scan text and return detailed structured SafetyViolation records.
 
         Args:
