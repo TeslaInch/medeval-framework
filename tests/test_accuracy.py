@@ -10,13 +10,11 @@ library so no model checkpoint is downloaded during the test run.
 
 from __future__ import annotations
 
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from medeval.accuracy import ExactMatchScorer, SemanticSimilarityScorer, _normalize
-
 
 # ---------------------------------------------------------------------------
 # _normalize helper
@@ -110,7 +108,7 @@ class TestExactMatchScorer:
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_evaluate(f1_scores: List[float]) -> MagicMock:
+def _make_mock_evaluate(f1_scores: list[float]) -> MagicMock:
     """Build a mock ``evaluate`` module that returns the given F1 scores.
 
     Args:

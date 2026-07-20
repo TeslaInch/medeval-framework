@@ -10,15 +10,12 @@ Tests are fully deterministic. ``export_report_to_json`` uses Python's
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
-from typing import List
 
 import pytest
 
 from medeval.report import ReportGenerator, export_report_to_json
 from medeval.structures import EvaluationReport, MedicalEvalSample
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -29,7 +26,7 @@ def _make_sample(
     sample_id: str = "q1",
     bert_score: float = 0.9,
     is_hallucination: bool = False,
-    safety_violations: List[str] | None = None,
+    safety_violations: list[str] | None = None,
     y_true: int | None = 1,
     y_prob: float | None = 0.9,
 ) -> MedicalEvalSample:
@@ -146,10 +143,7 @@ class TestReportGeneratorGenerate:
     def test_ece_computed_from_calibration_metadata(self) -> None:
         """ECE must be computed from y_true/y_prob metadata when available."""
         # All correct at confidence 0.9 → perfect calibration → ECE = 0.0
-        samples = [
-            _make_sample(f"q{i}", y_true=1, y_prob=0.9)
-            for i in range(10)
-        ]
+        samples = [_make_sample(f"q{i}", y_true=1, y_prob=0.9) for i in range(10)]
         gen = ReportGenerator("gpt-4o", "0.1.0", samples)
         report = gen.generate()
         assert "ece" in report.metrics
@@ -160,9 +154,7 @@ class TestReportGeneratorGenerate:
         # Only 1 sample has y_true/y_prob; the other has no such keys.
         samples = [
             _make_sample("q1", y_true=1, y_prob=0.9),
-            MedicalEvalSample(
-                id="q2", question="Q", ground_truth="A", model_prediction="A"
-            ),
+            MedicalEvalSample(id="q2", question="Q", ground_truth="A", model_prediction="A"),
         ]
         gen = ReportGenerator("gpt-4o", "0.1.0", samples)
         report = gen.generate()

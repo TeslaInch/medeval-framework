@@ -59,21 +59,16 @@ class TestColdVasoconstriction:
         )
         assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" not in codes
 
-    def test_detailed_result_includes_matched_term(
-        self, checker: SickleCellSafetyChecker
-    ) -> None:
+    def test_detailed_result_includes_matched_term(self, checker: SickleCellSafetyChecker) -> None:
         """SafetyViolation.matched_term must contain the substring that triggered the rule."""
         violations = checker.check_contraindications_detailed("Apply ice packs liberally.")
         cold_violations = [
-            v for v in violations
-            if v.code == "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION"
+            v for v in violations if v.code == "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION"
         ]
         assert len(cold_violations) == 1
         assert "ice" in cold_violations[0].matched_term.lower()
 
-    def test_detailed_result_severity_is_critical(
-        self, checker: SickleCellSafetyChecker
-    ) -> None:
+    def test_detailed_result_severity_is_critical(self, checker: SickleCellSafetyChecker) -> None:
         """Cold vasoconstriction violation must have severity='CRITICAL'."""
         violations = checker.check_contraindications_detailed("ice packs")
         assert violations[0].severity == "CRITICAL"
@@ -158,18 +153,14 @@ class TestNSAIDWarning:
     ]
 
     @pytest.mark.parametrize("text", NSAID_TRIGGERS)
-    def test_nsaid_triggers_warning_flag(
-        self, checker: SickleCellSafetyChecker, text: str
-    ) -> None:
+    def test_nsaid_triggers_warning_flag(self, checker: SickleCellSafetyChecker, text: str) -> None:
         """NSAID mentions must trigger WARNING:NSAID_RENAL_RISK_IN_SCD."""
         codes = checker.check_contraindications(text)
         assert "WARNING:NSAID_RENAL_RISK_IN_SCD" in codes, (
             f"Expected NSAID_RENAL_RISK_IN_SCD for: {text!r}"
         )
 
-    def test_nsaid_violation_severity_is_warning(
-        self, checker: SickleCellSafetyChecker
-    ) -> None:
+    def test_nsaid_violation_severity_is_warning(self, checker: SickleCellSafetyChecker) -> None:
         """NSAID violation must carry severity='WARNING' (not CRITICAL)."""
         violations = checker.check_contraindications_detailed("ibuprofen 400 mg")
         nsaid_vs = [v for v in violations if "NSAID" in v.code]
@@ -187,9 +178,7 @@ class TestMultipleViolations:
 
     def test_multiple_flags_raised(self, checker: SickleCellSafetyChecker) -> None:
         """A text with two distinct violations must return both codes."""
-        text = (
-            "Apply ice packs and restrict fluid intake in the acute VOC setting."
-        )
+        text = "Apply ice packs and restrict fluid intake in the acute VOC setting."
         codes = checker.check_contraindications(text)
         assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" in codes
         assert "CRITICAL_SAFETY_FAIL:FLUID_RESTRICTION_IN_VOC" in codes
@@ -197,10 +186,7 @@ class TestMultipleViolations:
 
     def test_triple_violation_text(self, checker: SickleCellSafetyChecker) -> None:
         """Text with three contraindications must flag all three."""
-        text = (
-            "Start norepinephrine, apply cold compression, "
-            "and restrict fluids to 500 mL/day."
-        )
+        text = "Start norepinephrine, apply cold compression, and restrict fluids to 500 mL/day."
         codes = checker.check_contraindications(text)
         assert "CRITICAL_SAFETY_FAIL:VASOCONSTRICTOR_IN_VOC" in codes
         assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" in codes
@@ -229,9 +215,7 @@ class TestSafeText:
     ) -> None:
         """Clinically safe recommendations must return an empty violations list."""
         codes = checker.check_contraindications(text)
-        assert codes == [], (
-            f"Expected no violations for safe text: {text!r}, got: {codes}"
-        )
+        assert codes == [], f"Expected no violations for safe text: {text!r}, got: {codes}"
 
 
 # ---------------------------------------------------------------------------
@@ -252,9 +236,7 @@ class TestInputValidation:
         with pytest.raises(ValueError, match="string"):
             checker.check_contraindications(None)  # type: ignore[arg-type]
 
-    def test_empty_string_returns_no_violations(
-        self, checker: SickleCellSafetyChecker
-    ) -> None:
+    def test_empty_string_returns_no_violations(self, checker: SickleCellSafetyChecker) -> None:
         """An empty string is valid input but must produce no violations."""
         codes = checker.check_contraindications("")
         assert codes == []

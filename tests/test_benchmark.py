@@ -9,7 +9,7 @@ request or dataset download occurs during the test run.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,13 +17,12 @@ import pytest
 from medeval.benchmark import BenchmarkLoader, DatasetLoadError
 from medeval.structures import MedicalEvalSample
 
-
 # ---------------------------------------------------------------------------
 # Helpers — fake HuggingFace dataset
 # ---------------------------------------------------------------------------
 
 
-def _make_fake_hf_dataset(rows: List[Dict[str, Any]]) -> MagicMock:
+def _make_fake_hf_dataset(rows: list[dict[str, Any]]) -> MagicMock:
     """Build a minimal mock that behaves like a HuggingFace ``Dataset``.
 
     Args:
@@ -43,7 +42,7 @@ def _make_fake_hf_dataset(rows: List[Dict[str, Any]]) -> MagicMock:
 
 
 # Sample rows matching the expected MedQA schema.
-_MEDQA_ROWS: List[Dict[str, Any]] = [
+_MEDQA_ROWS: list[dict[str, Any]] = [
     {
         "id": "medqa_0001",
         "question": "Which enzyme is deficient in PKU?",
@@ -67,11 +66,13 @@ _MEDQA_ROWS: List[Dict[str, Any]] = [
 ]
 
 # Sample rows matching the expected PubMedQA schema.
-_PUBMEDQA_ROWS: List[Dict[str, Any]] = [
+_PUBMEDQA_ROWS: list[dict[str, Any]] = [
     {
         "pubid": "12345678",
         "question": "Does aspirin reduce cardiovascular events?",
-        "context": {"contexts": ["Aspirin inhibits platelet aggregation.", "Studies show reduced MI risk."]},
+        "context": {
+            "contexts": ["Aspirin inhibits platelet aggregation.", "Studies show reduced MI risk."]
+        },
         "final_decision": "yes",
     },
     {
@@ -117,7 +118,7 @@ class TestBenchmarkLoaderInit:
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_datasets_module(rows: List[Dict[str, Any]]) -> MagicMock:
+def _make_mock_datasets_module(rows: list[dict[str, Any]]) -> MagicMock:
     """Build a mock ``datasets`` module whose ``load_dataset`` returns fake data.
 
     Args:

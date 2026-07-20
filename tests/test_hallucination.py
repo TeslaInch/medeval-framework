@@ -14,13 +14,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from medeval.hallucination import (
-    NLIHallucinationDetector,
-    NLIResult,
     _CONTRADICTION_LABEL,
     _ENTAILMENT_LABEL,
     _NEUTRAL_LABEL,
+    NLIHallucinationDetector,
+    NLIResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -194,9 +193,7 @@ class TestNLIHallucinationDetectorDetect:
         detector = self._make_detector_with_mock_pipeline(
             entailment=0.5, neutral=0.25, contradiction=0.25, threshold=0.5
         )
-        result = detector.detect(
-            premise="Context text.", hypothesis="Claim text."
-        )
+        result = detector.detect(premise="Context text.", hypothesis="Claim text.")
         # non_entailment = 0.5, threshold = 0.5 → NOT > threshold → no hallucination
         assert result.is_hallucination is False
 

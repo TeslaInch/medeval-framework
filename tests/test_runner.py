@@ -20,7 +20,6 @@ from medeval.runner import BenchmarkRunner, default_prompt_formatter
 from medeval.safety.sickle_cell import SickleCellSafetyChecker
 from medeval.structures import EvaluationReport, MedicalEvalSample
 
-
 # ---------------------------------------------------------------------------
 # Test Prompt Formatter
 # ---------------------------------------------------------------------------
@@ -169,7 +168,9 @@ class TestBenchmarkRunnerErrorHandling:
         """When ignore_errors is True, single-sample failure must not halt run."""
         connector = MockConnector(predictions=["Success"])
         # Mock generate to throw an error on the second call
-        connector.generate = MagicMock(side_effect=["Prediction 1", RuntimeError("Inference Error")])
+        connector.generate = MagicMock(
+            side_effect=["Prediction 1", RuntimeError("Inference Error")]
+        )
 
         samples = [
             MedicalEvalSample("s1", "Q1", "A1", ""),

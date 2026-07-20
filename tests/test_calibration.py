@@ -16,7 +16,6 @@ import pytest
 
 from medeval.calibration import calculate_ece
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -74,9 +73,8 @@ class TestPerfectCalibration:
             + [1] * low_conf_correct
             + [0] * low_conf_incorrect
         )
-        y_prob = (
-            [0.9] * (high_conf_correct + high_conf_incorrect)
-            + [0.1] * (low_conf_correct + low_conf_incorrect)
+        y_prob = [0.9] * (high_conf_correct + high_conf_incorrect) + [0.1] * (
+            low_conf_correct + low_conf_incorrect
         )
 
         ece = calculate_ece(y_true, y_prob, n_bins=10)
@@ -163,7 +161,7 @@ class TestEmptyBinsHandled:
         """All samples in a single bin must not cause errors in the other 9 empty bins."""
         n_samples = 20
         y_true = [1] * 10 + [0] * 10  # accuracy = 0.5
-        y_prob = [0.55] * n_samples    # confidence ≈ 0.55, all in [0.5, 0.6) bin
+        y_prob = [0.55] * n_samples  # confidence ≈ 0.55, all in [0.5, 0.6) bin
 
         result = calculate_ece(y_true, y_prob, n_bins=10)
 

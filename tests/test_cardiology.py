@@ -74,9 +74,13 @@ class TestNSAIDInHeartFailure:
         codes = checker.check_contraindications(text)
         assert "CRITICAL_SAFETY_FAIL:NSAID_IN_HEART_FAILURE" in codes
 
-    def test_nsaid_without_hf_context_does_not_trigger(self, checker: CardiologySafetyChecker) -> None:
+    def test_nsaid_without_hf_context_does_not_trigger(
+        self, checker: CardiologySafetyChecker
+    ) -> None:
         """NSAIDs recommended for general patients without heart failure context must not trigger CHF rules."""
-        codes = checker.check_contraindications("Recommend ibuprofen for a patient with a sprained ankle.")
+        codes = checker.check_contraindications(
+            "Recommend ibuprofen for a patient with a sprained ankle."
+        )
         assert "CRITICAL_SAFETY_FAIL:NSAID_IN_HEART_FAILURE" not in codes
 
 
@@ -104,7 +108,9 @@ class TestNonDhpCcbInHfref:
 
     def test_dihydropyridine_ccb_does_not_trigger(self, checker: CardiologySafetyChecker) -> None:
         """Dihydropyridines (like amlodipine) are safe in HFrEF and must not trigger warning."""
-        codes = checker.check_contraindications("Amlodipine can be used to treat hypertension in HFrEF.")
+        codes = checker.check_contraindications(
+            "Amlodipine can be used to treat hypertension in HFrEF."
+        )
         assert "WARNING:NON_DHP_CCB_IN_HFREF" not in codes
 
 

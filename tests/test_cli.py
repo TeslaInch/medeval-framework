@@ -20,7 +20,6 @@ from medeval.models.mock import MockConnector
 from medeval.models.openai_connector import OpenAIConnector
 from medeval.structures import EvaluationReport
 
-
 # ---------------------------------------------------------------------------
 # Test Connector Resolution
 # ---------------------------------------------------------------------------
