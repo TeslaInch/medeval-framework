@@ -57,8 +57,8 @@ class HuggingFaceConnector(BaseModelConnector):
             ) from exc
 
         logger.info("Initializing HuggingFace model %s on %s...", self.model_name, self._device)
-        self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self._model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)  # type: ignore[no-untyped-call]
+        self._model = AutoModelForCausalLM.from_pretrained(self.model_name)  # type: ignore[no-untyped-call]
         self._model.to(self._device)
         self._model.eval()
 
