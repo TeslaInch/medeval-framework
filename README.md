@@ -1,14 +1,26 @@
 # medeval
 
-[![CI Pipeline](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Support](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 
 A rigorous, open-source Python evaluation framework designed to benchmark medical Large Language Models (LLMs) for clinical accuracy, hallucination rates, and safety.
 
 ---
 
-##  Key Features
+## 📖 Table of Contents
+
+- [Key Features](#-key-features)
+- [Installation](#-installation)
+- [Quickstart](#-quickstart)
+  - [Command Line Interface (CLI)](#1-command-line-interface-cli)
+  - [Python Orchestration API](#2-python-orchestration-api)
+- [Repository Structure](#-repository-structure)
+- [Development & Testing](#-development--testing)
+- [License](#-license)
+
+---
+
+## 🌟 Key Features
 
 - **Multi-Dataset Benchmarks**: Out-of-the-box loaders for standardized medical datasets (MedQA, PubMedQA).
 - **Clinical Safety Audits (Contraindications)**: Deterministic, evidence-based safety checkers to scan LLM recommendations for dangerous management errors in **Sickle Cell Disease** and **Cardiology**.
@@ -17,28 +29,6 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 - **Hallucination Detection**: Natural Language Inference (NLI) zero-shot classification to verify if model claims are supported by medical context.
 - **Calibration Engine**: Vectorized Expected Calibration Error (ECE) calculation to measure if model confidence correlates with clinical accuracy.
 - **Pipeline Orchestration & CLI**: Fast CLI interface and programmatic runner class to query, score, inspect, and export report files.
-
----
-
-## 📁 Repository Structure
-
-```
-medeval/
-├── medeval/
-│   ├── models/               # Model Connectors (Base, HF, OpenAI, Mock)
-│   ├── safety/               # Safety Checkers (Base, SickleCell, Cardiology, SafetySuite)
-│   ├── accuracy.py           # Scorers (Exact Match, BERTScore F1)
-│   ├── benchmark.py          # Dataset Loader (PubMedQA, MedQA)
-│   ├── calibration.py        # Vectorized ECE Calculation Engine
-│   ├── hallucination.py      # NLI Zero-Shot Hallucination Detector
-│   ├── report.py             # Metric aggregation & JSON serialization
-│   ├── runner.py             # BenchmarkRunner orchestrator
-│   └── structures.py         # MedicalEvalSample & EvaluationReport contracts
-├── tests/                    # 165+ Offline Unit & Integration Tests
-├── pyproject.toml            # Ruff & Mypy configurations
-├── setup.py                  # Build and Packaging entrypoints
-└── requirements.txt          # Package dependencies
-```
 
 ---
 
@@ -136,9 +126,33 @@ export_report_to_json(report, "medeval_report.json")
 
 ---
 
+## 📁 Repository Structure
+
+```
+medeval/
+├── medeval/
+│   ├── models/               # Model Connectors (Base, HF, OpenAI, Mock)
+│   ├── safety/               # Safety Checkers (Base, SickleCell, Cardiology, SafetySuite)
+│   ├── accuracy.py           # Scorers (Exact Match, BERTScore F1)
+│   ├── benchmark.py          # Dataset Loader (PubMedQA, MedQA)
+│   ├── calibration.py        # Vectorized ECE Calculation Engine
+│   ├── hallucination.py      # NLI Zero-Shot Hallucination Detector
+│   ├── report.py             # Metric aggregation & JSON serialization
+│   ├── runner.py             # BenchmarkRunner orchestrator
+│   └── structures.py         # MedicalEvalSample & EvaluationReport contracts
+├── tests/                    # 165+ Offline Unit & Integration Tests
+├── pyproject.toml            # Ruff & Mypy configurations
+├── setup.py                  # Build and Packaging entrypoints
+└── requirements.txt          # Package dependencies
+```
+
+---
+
 ## 🧪 Development & Testing
 
-Ensure style alignment and type safety before committing changes.
+[![CI Pipeline](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/medeval-framework/actions/workflows/ci.yml)
+
+Ensure style alignment and type safety before committing changes. The GitHub Actions CI pipeline automatically runs these checks on every pull request.
 
 ```bash
 # Run pytest with code coverage
@@ -150,3 +164,9 @@ ruff check .
 # Run Mypy static type verification
 mypy medeval/
 ```
+
+---
+
+## 📄 License
+
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for more details.
