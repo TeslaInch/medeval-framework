@@ -42,6 +42,11 @@ setup(
     install_requires=[
         "numpy>=1.24.0",
     ],
+    entry_points={
+        "console_scripts": [
+            "medeval=medeval.cli:main",
+        ]
+    },
     extras_require={
         # Full NLP stack for SemanticSimilarityScorer, NLIHallucinationDetector,
         # and BenchmarkLoader.
