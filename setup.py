@@ -19,9 +19,7 @@ try:
     with open("README.md", encoding="utf-8") as fh:
         long_description: str = fh.read()
 except FileNotFoundError:
-    long_description = (
-        "medeval: A rigorous open-source benchmarking framework for medical LLMs."
-    )
+    long_description = "medeval: A rigorous open-source benchmarking framework for medical LLMs."
 
 setup(
     name="medeval",
@@ -34,7 +32,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/your-org/medeval-framework",
-    license="MIT",
+    license="Apache License 2.0",
     # Automatically discover all sub-packages inside the ``medeval`` directory.
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"medeval": ["py.typed"]},
@@ -75,7 +73,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Healthcare Industry",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",

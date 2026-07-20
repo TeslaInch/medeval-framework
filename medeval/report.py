@@ -26,8 +26,9 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .calibration import calculate_ece
 from .structures import EvaluationReport, MedicalEvalSample
@@ -80,7 +81,7 @@ class ReportGenerator:
         self,
         model_name: str,
         framework_version: str,
-        samples: List[MedicalEvalSample],
+        samples: list[MedicalEvalSample],
     ) -> None:
         """Initialise with model identity and the evaluated sample list.
 
@@ -95,25 +96,24 @@ class ReportGenerator:
         """
         if not samples:
             raise ValueError(
-                "ReportGenerator requires at least one MedicalEvalSample. "
-                "Received an empty list."
+                "ReportGenerator requires at least one MedicalEvalSample. Received an empty list."
             )
 
         self._model_name: str = model_name
         self._framework_version: str = framework_version
-        self._samples: List[MedicalEvalSample] = samples
+        self._samples: list[MedicalEvalSample] = samples
 
     # ------------------------------------------------------------------
     # Private aggregation helpers
     # ------------------------------------------------------------------
 
-    def _aggregate_bert_score(self) -> Optional[float]:
+    def _aggregate_bert_score(self) -> float | None:
         """Compute mean BERTScore F1 across samples that have the metric.
 
         Returns:
             Mean F1 float, or ``None`` if no samples carry the metric.
         """
-        scores: List[float] = [
+        scores: list[float] = [
             float(s.metadata[_KEY_BERT_SCORE])
             for s in self._samples
             if _KEY_BERT_SCORE in s.metadata
@@ -122,14 +122,14 @@ class ReportGenerator:
             return None
         return sum(scores) / len(scores)
 
-    def _aggregate_hallucination_rate(self) -> Optional[float]:
+    def _aggregate_hallucination_rate(self) -> float | None:
         """Compute fraction of samples flagged as hallucinations.
 
         Returns:
             Hallucination rate in [0, 1], or ``None`` if no samples carry
             the metric.
         """
-        flags: List[bool] = [
+        flags: list[bool] = [
             bool(s.metadata[_KEY_HALLUCINATION])
             for s in self._samples
             if _KEY_HALLUCINATION in s.metadata
@@ -138,23 +138,21 @@ class ReportGenerator:
             return None
         return sum(flags) / len(flags)
 
-    def _aggregate_safety_violations(self) -> List[Dict[str, Any]]:
+    def _aggregate_safety_violations(self) -> list[dict[str, Any]]:
         """Collect all safety violations across all samples.
 
         Returns:
             A list of violation record dicts, each containing ``"sample_id"``
             and ``"codes"`` (list of violation code strings).
         """
-        all_violations: List[Dict[str, Any]] = []
+        all_violations: list[dict[str, Any]] = []
         for sample in self._samples:
-            codes: List[str] = sample.metadata.get(_KEY_SAFETY_VIOLATIONS, [])
+            codes: list[str] = sample.metadata.get(_KEY_SAFETY_VIOLATIONS, [])
             if codes:
-                all_violations.append(
-                    {"sample_id": sample.id, "codes": codes}
-                )
+                all_violations.append({"sample_id": sample.id, "codes": codes})
         return all_violations
 
-    def _aggregate_ece(self) -> Optional[float]:
+    def _aggregate_ece(self) -> float | None:
         """Compute ECE from samples that carry ``y_true`` and ``y_prob``.
 
         Samples without both keys are silently skipped. Requires at least 2
@@ -164,8 +162,8 @@ class ReportGenerator:
             ECE float in [0, 1], or ``None`` if fewer than 2 eligible samples
             exist.
         """
-        y_true: List[int] = []
-        y_prob: List[float] = []
+        y_true: list[int] = []
+        y_prob: list[float] = []
 
         for sample in self._samples:
             if _KEY_Y_TRUE in sample.metadata and _KEY_Y_PROB in sample.metadata:
@@ -173,9 +171,7 @@ class ReportGenerator:
                 y_prob.append(float(sample.metadata[_KEY_Y_PROB]))
 
         if len(y_true) < 2:
-            logger.warning(
-                "Fewer than 2 samples have calibration data; skipping ECE calculation."
-            )
+            logger.warning("Fewer than 2 samples have calibration data; skipping ECE calculation.")
             return None
 
         return calculate_ece(y_true, y_prob)
@@ -196,7 +192,7 @@ class ReportGenerator:
         Returns:
             A fully populated :class:`~medeval.structures.EvaluationReport`.
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
 
         bert_score = self._aggregate_bert_score()
         if bert_score is not None:
@@ -264,7 +260,7 @@ class _MedevalJSONEncoder(json.JSONEncoder):
             return dataclasses.asdict(obj)
         return super().default(obj)
 
-    def iterencode(self, obj: Any, _one_shot: bool = False):  # type: ignore[override]
+    def iterencode(self, obj: Any, _one_shot: bool = False) -> Iterator[str]:
         """Iterate over JSON chunks, converting nan/inf floats to null.
 
         Args:
@@ -320,8 +316,7 @@ def export_report_to_json(
     """
     if not isinstance(report, EvaluationReport):
         raise TypeError(
-            f"'report' must be an EvaluationReport instance. "
-            f"Got: {type(report).__name__!r}."
+            f"'report' must be an EvaluationReport instance. Got: {type(report).__name__!r}."
         )
 
     output = Path(output_path)

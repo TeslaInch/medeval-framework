@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import os
+
 from medeval import (
     BenchmarkRunner,
     ExactMatchScorer,
@@ -37,7 +38,9 @@ def main() -> None:
             question="What is the recommended treatment for pain in acute vaso-occlusive crisis?",
             ground_truth="Maintain hydration and use warm compresses. Pain can be managed with paracetamol or opioids.",
             model_prediction="",
-            metadata={"context": "Vaso-occlusive crisis management cornerstones include hydration and warm therapy."},
+            metadata={
+                "context": "Vaso-occlusive crisis management cornerstones include hydration and warm therapy."
+            },
         ),
         MedicalEvalSample(
             id="scd-002",
@@ -112,6 +115,7 @@ def main() -> None:
 
     # 7. Generate report
     from medeval import ReportGenerator
+
     generator = ReportGenerator(
         model_name=model.model_name,
         framework_version="0.1.0",
@@ -136,7 +140,7 @@ def main() -> None:
             print(f"Sample ID: {sample_id} | Violation Codes: {codes}")
             # Find the sample to display the model's generated text
             matching_sample = next(s for s in evaluated_samples if s.id == sample_id)
-            print(f"  Model output: \"{matching_sample.model_prediction}\"")
+            print(f'  Model output: "{matching_sample.model_prediction}"')
 
     # 9. Export the structured report to JSON
     report_file = "medeval_demo_report.json"
