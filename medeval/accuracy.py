@@ -20,7 +20,7 @@ import logging
 import re
 import string
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,8 @@ class BaseScorer(ABC):
     @abstractmethod
     def score(
         self,
-        predictions: List[str],
-        references: List[str],
+        predictions: list[str],
+        references: list[str],
     ) -> float:
         """Compute an aggregate accuracy score over a batch of samples.
 
@@ -84,7 +84,7 @@ def _normalize(text: str) -> str:
     return text
 
 
-def _validate_inputs(predictions: List[str], references: List[str]) -> None:
+def _validate_inputs(predictions: list[str], references: list[str]) -> None:
     """Validate that scorer inputs are non-empty and length-matched.
 
     Args:
@@ -130,8 +130,8 @@ class ExactMatchScorer(BaseScorer):
 
     def score(
         self,
-        predictions: List[str],
-        references: List[str],
+        predictions: list[str],
+        references: list[str],
     ) -> float:
         """Compute fraction of predictions that exactly match their reference.
 
@@ -148,8 +148,7 @@ class ExactMatchScorer(BaseScorer):
         _validate_inputs(predictions, references)
 
         matches: int = sum(
-            _normalize(pred) == _normalize(ref)
-            for pred, ref in zip(predictions, references)
+            _normalize(pred) == _normalize(ref) for pred, ref in zip(predictions, references)
         )
         accuracy: float = matches / len(predictions)
 
@@ -196,7 +195,7 @@ class SemanticSimilarityScorer(BaseScorer):
     def __init__(
         self,
         model_type: str = "distilbert-base-uncased",
-        device: Optional[str] = None,
+        device: str | None = None,
     ) -> None:
         """Initialise the scorer with model and device configuration.
 
@@ -205,9 +204,9 @@ class SemanticSimilarityScorer(BaseScorer):
             device: Torch device override. ``None`` lets ``evaluate`` choose.
         """
         self._model_type: str = model_type
-        self._device: Optional[str] = device
+        self._device: str | None = device
         # Lazy-loaded — set to None until first score() call.
-        self._metric = None  # type: ignore[assignment]
+        self._metric: Any = None
 
     def _load_metric(self) -> None:
         """Lazily load the BERTScore metric from the ``evaluate`` library.
@@ -224,15 +223,13 @@ class SemanticSimilarityScorer(BaseScorer):
             ) from exc
 
         if self._metric is None:
-            logger.info(
-                "Loading BERTScore metric with model_type='%s'.", self._model_type
-            )
+            logger.info("Loading BERTScore metric with model_type='%s'.", self._model_type)
             self._metric = evaluate.load("bertscore")
 
     def score(
         self,
-        predictions: List[str],
-        references: List[str],
+        predictions: list[str],
+        references: list[str],
     ) -> float:
         """Compute mean BERTScore F1 over a batch of prediction-reference pairs.
 
@@ -258,8 +255,8 @@ class SemanticSimilarityScorer(BaseScorer):
         if self._device is not None:
             kwargs["device"] = self._device
 
-        results = self._metric.compute(**kwargs)  # type: ignore[union-attr]
-        f1_scores: List[float] = results["f1"]
+        results = self._metric.compute(**kwargs)
+        f1_scores: list[float] = results["f1"]
         mean_f1: float = sum(f1_scores) / len(f1_scores)
 
         logger.debug(

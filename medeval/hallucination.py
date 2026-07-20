@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ _ENTAILMENT_LABEL: str = "entailment"
 _NEUTRAL_LABEL: str = "neutral"
 _CONTRADICTION_LABEL: str = "contradiction"
 
-_NLI_CANDIDATE_LABELS: List[str] = [
+_NLI_CANDIDATE_LABELS: list[str] = [
     _ENTAILMENT_LABEL,
     _NEUTRAL_LABEL,
     _CONTRADICTION_LABEL,
@@ -65,7 +65,7 @@ class NLIResult:
     neutral_score: float
     contradiction_score: float
     threshold: float
-    raw_output: Dict[str, Any] = field(default_factory=dict)
+    raw_output: dict[str, Any] = field(default_factory=dict)
 
     @property
     def non_entailment_score(self) -> float:
@@ -132,15 +132,13 @@ class NLIHallucinationDetector:
             ValueError: If ``threshold`` is not strictly between 0 and 1.
         """
         if not (0.0 < threshold < 1.0):
-            raise ValueError(
-                f"threshold must be in the open interval (0, 1). Got: {threshold!r}."
-            )
+            raise ValueError(f"threshold must be in the open interval (0, 1). Got: {threshold!r}.")
 
         self._model_name: str = model_name
         self._threshold: float = threshold
         self._device: int = device
         # Pipeline is loaded lazily on first detect() call.
-        self._pipeline: Optional[Any] = None
+        self._pipeline: Any = None
 
     def _load_pipeline(self) -> None:
         """Lazily load the zero-shot classification pipeline.
@@ -196,16 +194,14 @@ class NLIHallucinationDetector:
 
         # The pipeline template makes the model evaluate:
         # "Does this passage imply: <hypothesis>?"
-        raw: Dict[str, Any] = self._pipeline(  # type: ignore[operator]
+        raw: dict[str, Any] = self._pipeline(
             premise,
             candidate_labels=_NLI_CANDIDATE_LABELS,
             hypothesis_template="{}",
         )
 
         # Map label → score from the pipeline's parallel lists.
-        label_to_score: Dict[str, float] = dict(
-            zip(raw["labels"], raw["scores"])
-        )
+        label_to_score: dict[str, float] = dict(zip(raw["labels"], raw["scores"]))
 
         entailment_score: float = label_to_score.get(_ENTAILMENT_LABEL, 0.0)
         neutral_score: float = label_to_score.get(_NEUTRAL_LABEL, 0.0)
@@ -235,9 +231,9 @@ class NLIHallucinationDetector:
 
     def detect_batch(
         self,
-        premises: List[str],
-        hypotheses: List[str],
-    ) -> List[NLIResult]:
+        premises: list[str],
+        hypotheses: list[str],
+    ) -> list[NLIResult]:
         """Run hallucination detection over a parallel batch of pairs.
 
         Args:
@@ -251,16 +247,11 @@ class NLIHallucinationDetector:
             ValueError: If the input lists have different lengths or are empty.
         """
         if not premises or not hypotheses:
-            raise ValueError(
-                "Both 'premises' and 'hypotheses' must be non-empty lists."
-            )
+            raise ValueError("Both 'premises' and 'hypotheses' must be non-empty lists.")
         if len(premises) != len(hypotheses):
             raise ValueError(
                 "Lengths of 'premises' and 'hypotheses' must match. "
                 f"Got premises={len(premises)}, hypotheses={len(hypotheses)}."
             )
 
-        return [
-            self.detect(premise=p, hypothesis=h)
-            for p, h in zip(premises, hypotheses)
-        ]
+        return [self.detect(premise=p, hypothesis=h) for p, h in zip(premises, hypotheses)]

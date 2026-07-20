@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from typing import List, Sequence
+from collections.abc import Sequence
 
 from .accuracy import BaseScorer, ExactMatchScorer, SemanticSimilarityScorer
 from .benchmark import BenchmarkLoader
@@ -57,7 +57,9 @@ def resolve_model_connector(model_name: str, device: str) -> BaseModelConnector:
         logger.info("CLI: Instantiating OpenAIConnector for model '%s'", actual_name)
         return OpenAIConnector(model_name=actual_name)
     else:
-        logger.info("CLI: Instantiating HuggingFaceConnector for model '%s' on %s", clean_name, device)
+        logger.info(
+            "CLI: Instantiating HuggingFaceConnector for model '%s' on %s", clean_name, device
+        )
         return HuggingFaceConnector(model_name=clean_name, device=device)
 
 
@@ -79,12 +81,12 @@ def run_evaluation(args: argparse.Namespace) -> int:
     log_level = logging.DEBUG if args.verbose else logging.WARNING
     logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-    print(f"=== medeval LLM Evaluation Runner ===")
+    print("=== medeval LLM Evaluation Runner ===")
     print(f"Model:    {args.model}")
     print(f"Dataset:  {args.dataset} (split: {args.split})")
     if args.limit:
         print(f"Limit:    {args.limit} samples")
-    print(f"=====================================")
+    print("=====================================")
 
     try:
         # 2. Instantiate Model Connector
@@ -101,10 +103,12 @@ def run_evaluation(args: argparse.Namespace) -> int:
             return 1
 
         # 4. Instantiate scorers
-        scorers: List[BaseScorer] = [ExactMatchScorer()]
+        scorers: list[BaseScorer] = [ExactMatchScorer()]
         # Add Semantic similarity scorer if enabled (and not disabled by user)
         if args.use_semantic_similarity:
-            scorers.append(SemanticSimilarityScorer(model_type=args.bertscore_model, device=args.device))
+            scorers.append(
+                SemanticSimilarityScorer(model_type=args.bertscore_model, device=args.device)
+            )
 
         # 5. Instantiate NLI hallucination detector
         hallucination_detector = None

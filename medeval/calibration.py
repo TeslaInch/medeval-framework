@@ -16,7 +16,6 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import List
 
 import numpy as np
 
@@ -24,8 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_ece(
-    y_true: List[int],
-    y_prob: List[float],
+    y_true: list[int],
+    y_prob: list[float],
     n_bins: int = 10,
 ) -> float:
     """Compute the Expected Calibration Error (ECE) using equal-width probability bins.
@@ -95,9 +94,7 @@ def calculate_ece(
         )
 
     if not isinstance(n_bins, int) or n_bins < 1:
-        raise ValueError(
-            f"n_bins must be a positive integer. Received: {n_bins!r}."
-        )
+        raise ValueError(f"n_bins must be a positive integer. Received: {n_bins!r}.")
 
     labels = np.asarray(y_true, dtype=np.int64)
     probs = np.asarray(y_prob, dtype=np.float64)

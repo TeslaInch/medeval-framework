@@ -16,7 +16,7 @@ actionable messages if the expected columns are absent.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .structures import MedicalEvalSample
 
@@ -83,8 +83,8 @@ class BenchmarkLoader:
     def __init__(
         self,
         split: str = "test",
-        max_samples: Optional[int] = None,
-        cache_dir: Optional[str] = None,
+        max_samples: int | None = None,
+        cache_dir: str | None = None,
     ) -> None:
         """Initialise the loader with split, sample cap, and cache configuration.
 
@@ -97,15 +97,13 @@ class BenchmarkLoader:
             ValueError: If ``max_samples`` is provided but is not a positive integer.
         """
         if max_samples is not None and max_samples < 1:
-            raise ValueError(
-                f"max_samples must be a positive integer. Got: {max_samples!r}."
-            )
+            raise ValueError(f"max_samples must be a positive integer. Got: {max_samples!r}.")
 
         self._split: str = split
-        self._max_samples: Optional[int] = max_samples
-        self._cache_dir: Optional[str] = cache_dir
+        self._max_samples: int | None = max_samples
+        self._cache_dir: str | None = cache_dir
 
-    def _load_hf_dataset(self, dataset_name: str, config: Optional[str] = None) -> Any:
+    def _load_hf_dataset(self, dataset_name: str, config: str | None = None) -> Any:
         """Load a HuggingFace dataset, raising ``DatasetLoadError`` on failure.
 
         Args:
@@ -129,7 +127,7 @@ class BenchmarkLoader:
             ) from exc
 
         try:
-            load_kwargs: Dict[str, Any] = {"split": self._split}
+            load_kwargs: dict[str, Any] = {"split": self._split}
             if self._cache_dir is not None:
                 load_kwargs["cache_dir"] = self._cache_dir
 
@@ -163,7 +161,7 @@ class BenchmarkLoader:
     # MedQA
     # ------------------------------------------------------------------
 
-    def load_medqa(self) -> List[MedicalEvalSample]:
+    def load_medqa(self) -> list[MedicalEvalSample]:
         """Load MedQA and map to ``MedicalEvalSample`` objects.
 
         Uses the ``bigbio/med_qa`` HuggingFace dataset. Each row is a
@@ -197,12 +195,10 @@ class BenchmarkLoader:
                 f"Available columns: {actual_columns!r}.",
             )
 
-        samples: List[MedicalEvalSample] = []
+        samples: list[MedicalEvalSample] = []
         for i, row in enumerate(raw):
             # choices is a list of dicts: [{"key": "A", "value": "..."}, ...]
-            choice_map: Dict[str, str] = {
-                c["key"]: c["value"] for c in row["choices"]
-            }
+            choice_map: dict[str, str] = {c["key"]: c["value"] for c in row["choices"]}
             answer_key: str = row["answer_idx"]
             ground_truth: str = choice_map.get(answer_key, answer_key)
 
@@ -227,7 +223,7 @@ class BenchmarkLoader:
     # PubMedQA
     # ------------------------------------------------------------------
 
-    def load_pubmedqa(self) -> List[MedicalEvalSample]:
+    def load_pubmedqa(self) -> list[MedicalEvalSample]:
         """Load PubMedQA and map to ``MedicalEvalSample`` objects.
 
         Uses the ``pubmed_qa`` HuggingFace dataset with the
@@ -258,14 +254,12 @@ class BenchmarkLoader:
                 f"Available columns: {actual_columns!r}.",
             )
 
-        samples: List[MedicalEvalSample] = []
+        samples: list[MedicalEvalSample] = []
         for i, row in enumerate(raw):
             # context is a dict with "contexts" (list of passage strings)
             context_obj = row.get("context", {})
-            context_passages: List[str] = (
-                context_obj.get("contexts", [])
-                if isinstance(context_obj, dict)
-                else []
+            context_passages: list[str] = (
+                context_obj.get("contexts", []) if isinstance(context_obj, dict) else []
             )
             context_text: str = " ".join(context_passages)
 
@@ -282,7 +276,5 @@ class BenchmarkLoader:
             )
             samples.append(sample)
 
-        logger.info(
-            "Loaded %d PubMedQA samples from split='%s'.", len(samples), self._split
-        )
+        logger.info("Loaded %d PubMedQA samples from split='%s'.", len(samples), self._split)
         return samples

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .base import BaseModelConnector
 
@@ -35,14 +35,14 @@ class OpenAIConnector(BaseModelConnector):
     def __init__(
         self,
         model_name: str,
-        api_key: Optional[str] = None,
-        client_kwargs: Optional[Dict[str, Any]] = None,
+        api_key: str | None = None,
+        client_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialise client credentials and target model configuration."""
         super().__init__(model_name=model_name)
         self._api_key = api_key
         self._client_kwargs = client_kwargs or {}
-        self._client = None
+        self._client: Any = None
 
     def _lazy_init(self) -> None:
         """Lazily imports and instantiates the OpenAI client."""
@@ -85,7 +85,7 @@ class OpenAIConnector(BaseModelConnector):
         )
         return str(response.choices[0].message.content).strip()
 
-    def generate_probabilities(self, prompt: str) -> List[float]:
+    def generate_probabilities(self, prompt: str) -> list[float]:
         """Request log-probabilities from the API and convert to linear probabilities.
 
         Args:
@@ -111,7 +111,7 @@ class OpenAIConnector(BaseModelConnector):
             logger.warning("No logprobs returned by OpenAI API for model %s.", self.model_name)
             return []
 
-        probabilities: List[float] = []
+        probabilities: list[float] = []
         # Extract linear probabilities from the log probabilities of generated tokens
         for token_logprob in choice.logprobs.content:
             logprob = token_logprob.logprob
