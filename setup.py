@@ -58,6 +58,8 @@ setup(
         "dev": [
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
+            "ruff>=0.1.0",
+            "mypy>=1.0.0",
         ],
         # Convenience meta-extra: everything.
         "all": [
@@ -67,6 +69,8 @@ setup(
             "torch>=2.0.0",
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
+            "ruff>=0.1.0",
+            "mypy>=1.0.0",
         ],
     },
     classifiers=[
