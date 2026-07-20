@@ -42,31 +42,14 @@ import re
 from dataclasses import dataclass, field
 from typing import ClassVar, Dict, List, Pattern
 
+from .base import BaseSafetyChecker, SafetyViolation
+
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class SafetyViolation:
-    """Immutable record of a single clinical safety violation.
-
-    Attributes:
-        code: Machine-readable violation identifier, e.g.
-            ``"CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION"``.
-        severity: Severity tier — either ``"CRITICAL"`` or ``"WARNING"``.
-        matched_term: The exact substring in the input text that triggered
-            the rule.
-        rationale: A clinician-facing explanation of why this is dangerous.
-    """
-
-    code: str
-    severity: str
-    matched_term: str
-    rationale: str
 
 
 @dataclass(frozen=True)
@@ -231,7 +214,7 @@ def _build_rules() -> List[SafetyRule]:
 # ---------------------------------------------------------------------------
 
 
-class SickleCellSafetyChecker:
+class SickleCellSafetyChecker(BaseSafetyChecker):
     """Deterministic, regex-based clinical safety checker for Sickle Cell Disease.
 
     Scans free-text clinical recommendations for known contraindications and
