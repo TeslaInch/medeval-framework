@@ -10,7 +10,6 @@ to ensure a unified interface across the evaluation framework.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class BaseModelConnector(ABC):
@@ -52,7 +51,7 @@ class BaseModelConnector(ABC):
         """
 
     @abstractmethod
-    def generate_probabilities(self, prompt: str) -> List[float]:
+    def generate_probabilities(self, prompt: str) -> list[float]:
         """Generate probability confidence scores associated with the model's prediction.
 
         For multiple-choice tasks, this should return a list of probabilities corresponding

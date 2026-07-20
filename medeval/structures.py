@@ -10,7 +10,7 @@ benchmark run.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass(frozen=True)
@@ -47,9 +47,9 @@ class MedicalEvalSample:
     ground_truth: str
     model_prediction: str
     # Softmax probabilities or log-probs for calibration (e.g., ECE) checks.
-    prediction_probabilities: Optional[List[float]] = None
+    prediction_probabilities: Optional[list[float]] = None
     # Arbitrary metadata for filtering (e.g., specialty, dataset, difficulty).
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -85,5 +85,5 @@ class EvaluationReport:
     model_name: str
     framework_version: str
     total_samples: int
-    metrics: Dict[str, float] = field(default_factory=dict)
-    safety_violations: List[Dict[str, Any]] = field(default_factory=list)
+    metrics: dict[str, float] = field(default_factory=dict)
+    safety_violations: list[dict[str, Any]] = field(default_factory=list)

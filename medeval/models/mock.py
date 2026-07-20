@@ -11,7 +11,6 @@ and reports without making network requests or loading heavy model files.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from .base import BaseModelConnector
 
@@ -38,9 +37,9 @@ class MockConnector(BaseModelConnector):
     def __init__(
         self,
         model_name: str = "mock-model",
-        predictions: Optional[List[str]] = None,
-        probabilities: Optional[List[List[float]]] = None,
-        mapping: Optional[Dict[str, Tuple[str, List[float]]]] = None,
+        predictions: list[str] | None = None,
+        probabilities: list[list[float]] | None = None,
+        mapping: dict[str, tuple[str, list[float]]] | None = None,
     ) -> None:
         """Initialise mock model outputs."""
         super().__init__(model_name=model_name)
@@ -76,7 +75,7 @@ class MockConnector(BaseModelConnector):
 
         return "Default Mock Response"
 
-    def generate_probabilities(self, prompt: str) -> List[float]:
+    def generate_probabilities(self, prompt: str) -> list[float]:
         """Mock response probability generation.
 
         Args:

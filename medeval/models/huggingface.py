@@ -10,7 +10,7 @@ Loads resources lazily to keep imports fast and avoid memory overhead when unuse
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .base import BaseModelConnector
 
@@ -33,14 +33,14 @@ class HuggingFaceConnector(BaseModelConnector):
         self,
         model_name: str,
         device: str = "cpu",
-        generation_kwargs: Optional[Dict[str, Any]] = None,
+        generation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialise the connector with model name, target device and options."""
         super().__init__(model_name=model_name)
         self._device = device
         self._generation_kwargs = generation_kwargs or {}
-        self._tokenizer = None
-        self._model = None
+        self._tokenizer: Any = None
+        self._model: Any = None
 
     def _lazy_init(self) -> None:
         """Lazily imports and instantiates tokenizer and model."""
@@ -48,7 +48,7 @@ class HuggingFaceConnector(BaseModelConnector):
             return
 
         try:
-            import torch  # noqa: PLC0415
+            import torch  # noqa: PLC0415, F401
             from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: PLC0415
         except ImportError as exc:
             raise ImportError(
@@ -93,9 +93,9 @@ class HuggingFaceConnector(BaseModelConnector):
 
         # Extract only the generated output tokens (skip the original prompt)
         generated_tokens = outputs[0][input_len:]
-        return self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        return str(self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip())
 
-    def generate_probabilities(self, prompt: str) -> List[float]:
+    def generate_probabilities(self, prompt: str) -> list[float]:
         """Retrieve token-level transition probabilities or logits softmax.
 
         For multiple choice choices (e.g. A, B, C, D) or direct tokens, this

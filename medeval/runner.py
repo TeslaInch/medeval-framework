@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .accuracy import BaseScorer, ExactMatchScorer, SemanticSimilarityScorer
 from .hallucination import NLIHallucinationDetector
@@ -43,7 +43,7 @@ def default_prompt_formatter(sample: MedicalEvalSample) -> str:
     Returns:
         A formatted string ready to be consumed by the model connector.
     """
-    parts: List[str] = []
+    parts: list[str] = []
 
     # 1. Inject clinical context if present (e.g., PubMedQA context)
     context = sample.metadata.get("context")
@@ -98,11 +98,11 @@ class BenchmarkRunner:
     def __init__(
         self,
         model: BaseModelConnector,
-        scorers: Optional[List[BaseScorer]] = None,
-        hallucination_detector: Optional[NLIHallucinationDetector] = None,
-        safety_checker: Optional[SickleCellSafetyChecker] = None,
+        scorers: list[BaseScorer] | None = None,
+        hallucination_detector: NLIHallucinationDetector | None = None,
+        safety_checker: SickleCellSafetyChecker | None = None,
         framework_version: str = "0.1.0",
-        prompt_formatter: Optional[callable] = None,  # type: ignore[valid-type]
+        prompt_formatter: callable | None = None,  # type: ignore[valid-type]
         ignore_errors: bool = False,
     ) -> None:
         """Initialise runner configuration."""
@@ -117,9 +117,9 @@ class BenchmarkRunner:
     def _determine_y_prob(
         self,
         prediction: str,
-        probs: List[float],
-        choices: Optional[Dict[str, Any]],
-    ) -> Optional[float]:
+        probs: list[float],
+        choices: dict[str, Any] | None,
+    ) -> float | None:
         """Extract the model's confidence probability (y_prob) for its prediction.
 
         For multiple choice tasks, maps the model's predicted letter choice (e.g., 'A')
@@ -156,7 +156,7 @@ class BenchmarkRunner:
         # Fallback to the peak generation confidence / max probability
         return max(probs)
 
-    def evaluate_sample(self, sample: MedicalEvalSample) -> Optional[MedicalEvalSample]:
+    def evaluate_sample(self, sample: MedicalEvalSample) -> MedicalEvalSample | None:
         """Generate response and calculate metrics for a single sample.
 
         Args:
@@ -224,7 +224,7 @@ class BenchmarkRunner:
                 return None
             raise exc
 
-    def run(self, samples: List[MedicalEvalSample]) -> EvaluationReport:
+    def run(self, samples: list[MedicalEvalSample]) -> EvaluationReport:
         """Run the complete benchmark execution loop over a set of samples.
 
         Args:
@@ -236,16 +236,14 @@ class BenchmarkRunner:
         if not samples:
             raise ValueError("Runner requires at least one evaluation sample.")
 
-        evaluated_samples: List[MedicalEvalSample] = []
+        evaluated_samples: list[MedicalEvalSample] = []
         for sample in samples:
             res = self.evaluate_sample(sample)
             if res is not None:
                 evaluated_samples.append(res)
 
         if not evaluated_samples:
-            raise ValueError(
-                "All samples failed to evaluate and ignore_errors was set to True."
-            )
+            raise ValueError("All samples failed to evaluate and ignore_errors was set to True.")
 
         # Build and return the final report
         generator = ReportGenerator(

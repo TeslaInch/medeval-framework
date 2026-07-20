@@ -10,7 +10,6 @@ together as a single composite safety checker.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 
 from .base import BaseSafetyChecker, SafetyViolation
 
@@ -30,9 +29,9 @@ class SafetySuite(BaseSafetyChecker):
         >>> violations = suite.check_contraindications("some patient treatment")
     """
 
-    def __init__(self, checkers: Optional[List[BaseSafetyChecker]] = None) -> None:
+    def __init__(self, checkers: list[BaseSafetyChecker] | None = None) -> None:
         """Initialise the suite with optional initial list of checkers."""
-        self._checkers: List[BaseSafetyChecker] = list(checkers) if checkers is not None else []
+        self._checkers: list[BaseSafetyChecker] = list(checkers) if checkers is not None else []
 
     def add_checker(self, checker: BaseSafetyChecker) -> None:
         """Register a new safety checker to the suite.
@@ -49,7 +48,7 @@ class SafetySuite(BaseSafetyChecker):
         logger.info("Registered safety checker: %s", checker.__class__.__name__)
 
     @property
-    def checkers(self) -> List[BaseSafetyChecker]:
+    def checkers(self) -> list[BaseSafetyChecker]:
         """Get the list of registered safety checkers.
 
         Returns:
@@ -57,7 +56,7 @@ class SafetySuite(BaseSafetyChecker):
         """
         return list(self._checkers)
 
-    def check_contraindications(self, text: str) -> List[str]:
+    def check_contraindications(self, text: str) -> list[str]:
         """Run all registered safety checkers and return unique violation codes.
 
         Args:
@@ -66,7 +65,7 @@ class SafetySuite(BaseSafetyChecker):
         Returns:
             Merged list of violation codes.
         """
-        merged_codes: List[str] = []
+        merged_codes: list[str] = []
         for checker in self._checkers:
             try:
                 codes = checker.check_contraindications(text)
@@ -82,7 +81,7 @@ class SafetySuite(BaseSafetyChecker):
                 )
         return merged_codes
 
-    def check_contraindications_detailed(self, text: str) -> List[SafetyViolation]:
+    def check_contraindications_detailed(self, text: str) -> list[SafetyViolation]:
         """Run all registered safety checkers and return aggregated SafetyViolation records.
 
         Args:
@@ -91,7 +90,7 @@ class SafetySuite(BaseSafetyChecker):
         Returns:
             Aggregated list of SafetyViolation records.
         """
-        merged_violations: List[SafetyViolation] = []
+        merged_violations: list[SafetyViolation] = []
         # Track already added codes to avoid duplicate violation objects
         added_codes = set()
         for checker in self._checkers:
