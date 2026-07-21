@@ -46,21 +46,21 @@ _MEDQA_ROWS: list[dict[str, Any]] = [
     {
         "id": "medqa_0001",
         "question": "Which enzyme is deficient in PKU?",
-        "choices": [
-            {"key": "A", "value": "Phenylalanine hydroxylase"},
-            {"key": "B", "value": "Tyrosinase"},
-            {"key": "C", "value": "Homogentisate oxidase"},
-            {"key": "D", "value": "DOPA decarboxylase"},
-        ],
+        "options": {
+            "A": "Phenylalanine hydroxylase",
+            "B": "Tyrosinase",
+            "C": "Homogentisate oxidase",
+            "D": "DOPA decarboxylase",
+        },
         "answer_idx": "A",
     },
     {
         "id": "medqa_0002",
         "question": "What is the first-line treatment for Type 2 DM?",
-        "choices": [
-            {"key": "A", "value": "Insulin"},
-            {"key": "B", "value": "Metformin"},
-        ],
+        "options": {
+            "A": "Insulin",
+            "B": "Metformin",
+        },
         "answer_idx": "B",
     },
 ]

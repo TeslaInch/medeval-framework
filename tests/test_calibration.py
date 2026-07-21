@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from medeval.calibration import calculate_ece
+from medeval.calibration import calculate_brier_score, calculate_ece, calculate_mce
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -215,3 +215,50 @@ class TestInputValidation:
         """ValueError must be raised when n_bins is a float, not an int."""
         with pytest.raises(ValueError, match="positive integer"):
             calculate_ece([1, 0], [0.9, 0.1], n_bins=10.0)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# MCE & Brier Score tests
+# ---------------------------------------------------------------------------
+
+
+class TestMaximumCalibrationError:
+    def test_mce_with_perfect_calibration(self) -> None:
+        """MCE must be 0.0 when perfectly calibrated."""
+        y_true = [1] * 9 + [0] * 1
+        y_prob = [0.9] * 10
+        mce = calculate_mce(y_true, y_prob, n_bins=10)
+        assert abs(mce - 0.0) < FLOAT_TOLERANCE
+
+    def test_mce_with_overconfidence(self) -> None:
+        """MCE identifies the worst-case bin gap."""
+        # Bin 1 (high confidence): 100 samples, acc 0.5, conf 0.99 -> error = 0.49
+        # Bin 2 (low confidence): 100 samples, acc 0.1, conf 0.1 -> error = 0.0
+        y_true = [1, 0] * 50 + [1] * 10 + [0] * 90
+        y_prob = [0.99] * 100 + [0.1] * 100
+        mce = calculate_mce(y_true, y_prob, n_bins=10)
+        assert abs(mce - 0.49) < FLOAT_TOLERANCE
+
+
+class TestBrierScore:
+    def test_brier_score_perfect(self) -> None:
+        """Brier score is exactly 0.0 if predictions match labels perfectly."""
+        y_true = [1, 1, 0, 0]
+        y_prob = [1.0, 1.0, 0.0, 0.0]
+        brier = calculate_brier_score(y_true, y_prob)
+        assert abs(brier - 0.0) < FLOAT_TOLERANCE
+
+    def test_brier_score_worst(self) -> None:
+        """Brier score is 1.0 if completely wrong."""
+        y_true = [1, 0]
+        y_prob = [0.0, 1.0]
+        brier = calculate_brier_score(y_true, y_prob)
+        assert abs(brier - 1.0) < FLOAT_TOLERANCE
+
+    def test_brier_score_intermediate(self) -> None:
+        """Test standard intermediate calculations."""
+        y_true = [1, 0]
+        y_prob = [0.8, 0.2]
+        # ( (0.8 - 1)^2 + (0.2 - 0)^2 ) / 2 = (0.04 + 0.04) / 2 = 0.04
+        brier = calculate_brier_score(y_true, y_prob)
+        assert abs(brier - 0.04) < FLOAT_TOLERANCE

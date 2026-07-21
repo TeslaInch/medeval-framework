@@ -30,38 +30,20 @@ def _make_pipeline_output(
     entailment: float,
     neutral: float,
     contradiction: float,
-) -> dict:
-    """Build a fake zero-shot pipeline output dict.
-
-    Args:
-        entailment: Probability score for the entailment label.
-        neutral: Probability score for the neutral label.
-        contradiction: Probability score for the contradiction label.
-
-    Returns:
-        A dict matching the structure returned by
-        ``transformers.pipeline("zero-shot-classification")``.
-    """
-    return {
-        "labels": [_ENTAILMENT_LABEL, _NEUTRAL_LABEL, _CONTRADICTION_LABEL],
-        "scores": [entailment, neutral, contradiction],
-        "sequence": "dummy",
-    }
+) -> list[dict]:
+    """Build a fake text-classification pipeline output."""
+    return [
+        {"label": _ENTAILMENT_LABEL, "score": entailment},
+        {"label": _NEUTRAL_LABEL, "score": neutral},
+        {"label": _CONTRADICTION_LABEL, "score": contradiction},
+    ]
 
 
 def _make_mock_pipeline(entailment: float, neutral: float, contradiction: float) -> MagicMock:
-    """Create a mock transformers pipeline returning the specified scores.
-
-    Args:
-        entailment: Entailment probability.
-        neutral: Neutral probability.
-        contradiction: Contradiction probability.
-
-    Returns:
-        A callable ``MagicMock`` that returns the expected pipeline dict.
-    """
+    """Create a mock transformers pipeline returning the specified scores."""
     output = _make_pipeline_output(entailment, neutral, contradiction)
-    mock_pipe = MagicMock(return_value=output)
+    mock_pipe = MagicMock(return_value=[output])
+    mock_pipe.model.config.id2label = None
     return mock_pipe
 
 
@@ -201,8 +183,7 @@ class TestNLIHallucinationDetectorDetect:
         """NLIResult.raw_output must contain the full pipeline response."""
         detector = self._make_detector_with_mock_pipeline(0.8, 0.1, 0.1)
         result = detector.detect(premise="Premise.", hypothesis="Hypothesis.")
-        assert "labels" in result.raw_output
-        assert "scores" in result.raw_output
+        assert "raw_list" in result.raw_output
 
     def test_raises_on_empty_premise(self) -> None:
         """ValueError must be raised when premise is an empty string."""
