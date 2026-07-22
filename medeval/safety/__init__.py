@@ -9,6 +9,7 @@ safety checkers (Sickle Cell, Cardiology).
 
 from .base import BaseSafetyChecker, SafetyViolation
 from .cardiology import CardiologySafetyChecker
+from .semantic import SemanticSafetyChecker
 from .sickle_cell import SickleCellSafetyChecker
 from .suite import SafetySuite
 
@@ -18,4 +19,5 @@ __all__ = [
     "SafetySuite",
     "SickleCellSafetyChecker",
     "CardiologySafetyChecker",
+    "SemanticSafetyChecker",
 ]

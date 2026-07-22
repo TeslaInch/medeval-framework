@@ -180,11 +180,11 @@ class BenchmarkLoader:
             DatasetLoadError: If the dataset cannot be loaded or the expected
                 columns are missing.
         """
-        dataset_name = "bigbio/med_qa"
-        raw = self._load_hf_dataset(dataset_name, config="med_qa_en_bigbio_qa")
+        dataset_name = "GBaker/MedQA-USMLE-4-options"
+        raw = self._load_hf_dataset(dataset_name)
         raw = self._cap(raw)
 
-        required_columns = {"id", "question", "choices", "answer_idx"}
+        required_columns = {"question", "options", "answer_idx"}
         actual_columns = set(raw.column_names)
         # Fall back gracefully if schema differs between dataset versions.
         missing = required_columns - actual_columns
@@ -197,8 +197,8 @@ class BenchmarkLoader:
 
         samples: list[MedicalEvalSample] = []
         for i, row in enumerate(raw):
-            # choices is a list of dicts: [{"key": "A", "value": "..."}, ...]
-            choice_map: dict[str, str] = {c["key"]: c["value"] for c in row["choices"]}
+            # options is a dict: {"A": "...", "B": "..."}
+            choice_map: dict[str, str] = row["options"]
             answer_key: str = row["answer_idx"]
             ground_truth: str = choice_map.get(answer_key, answer_key)
 

@@ -198,10 +198,8 @@ class BenchmarkRunner:
 
             # 7. Apply NLI hallucination detector
             if self._hallucination_detector is not None:
-                # If context is missing in metadata, fallback to prompt or question
-                premise = sample.metadata.get("context", sample.question)
                 nli_res = self._hallucination_detector.detect(
-                    premise=premise, hypothesis=prediction
+                    ground_truth=sample.ground_truth, model_prediction=prediction
                 )
                 metadata["is_hallucination"] = nli_res.is_hallucination
 

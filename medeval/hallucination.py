@@ -4,16 +4,16 @@ medeval/hallucination.py
 Hallucination detection via Natural Language Inference (NLI).
 
 Clinical hallucination — a model asserting a clinical fact that contradicts
-or is unsupported by the provided context — is detected by framing the
+or is unsupported by the provided ground truth — is detected by framing the
 problem as NLI:
 
-    Premise  → The authoritative clinical context / source text.
-    Hypothesis → The model's generated claim or response.
+    Premise (text)       → The authoritative ground truth / clinical facts.
+    Hypothesis (text_pair) → The model's generated prediction / claim.
 
 An NLI model classifies the relationship as one of:
-    - ``entailment``    → claim is supported by context (NOT a hallucination)
+    - ``entailment``    → claim is supported by ground truth (NOT a hallucination)
     - ``neutral``       → claim is neither confirmed nor denied (uncertain)
-    - ``contradiction`` → claim conflicts with context (definite hallucination)
+    - ``contradiction`` → claim conflicts with ground truth (definite hallucination)
 
 We flag a hallucination if the combined (neutral + contradiction) probability
 exceeds a configurable threshold (default 0.5), erring on the side of caution
@@ -96,7 +96,7 @@ class NLIHallucinationDetector:
 
     Args:
         model_name: HuggingFace model identifier. Defaults to
-            ``"microsoft/deberta-v3-large-mnli"``, which achieves strong NLI
+            ``"cross-encoder/nli-deberta-v3-large"``, which achieves strong NLI
             performance on clinical text.
         threshold: Decision threshold for hallucination classification.
             Higher values are more permissive (fewer false positives).
@@ -116,7 +116,7 @@ class NLIHallucinationDetector:
 
     def __init__(
         self,
-        model_name: str = "microsoft/deberta-v3-large-mnli",
+        model_name: str = "cross-encoder/nli-deberta-v3-large",
         threshold: float = 0.5,
         device: int = -1,
     ) -> None:
@@ -161,51 +161,75 @@ class NLIHallucinationDetector:
                 self._device,
             )
             self._pipeline = pipeline(
-                "zero-shot-classification",
+                "text-classification",
                 model=self._model_name,
                 device=self._device,
             )
 
-    def detect(self, premise: str, hypothesis: str) -> NLIResult:
-        """Detect whether ``hypothesis`` is a hallucination given ``premise``.
+    def detect(self, ground_truth: str, model_prediction: str) -> NLIResult:
+        """Detect whether ``model_prediction`` is a hallucination given ``ground_truth``.
 
-        Frames the problem as NLI: the pipeline is asked whether the premise
-        *entails*, is *neutral* toward, or *contradicts* the hypothesis.
+        Frames the problem as NLI: the pipeline is asked whether the ground truth
+        *entails*, is *neutral* toward, or *contradicts* the prediction.
 
         Args:
-            premise: Authoritative clinical context (e.g. a retrieved passage
-                from a medical knowledge base or patient record).
-            hypothesis: The model's generated claim or answer to check.
+            ground_truth: Authoritative clinical facts / ground truth.
+            model_prediction: The model's generated claim or answer to check.
 
         Returns:
             An :class:`NLIResult` containing the per-label probabilities and
             the final hallucination flag.
 
         Raises:
-            ValueError: If ``premise`` or ``hypothesis`` is empty.
+            ValueError: If ``ground_truth`` or ``model_prediction`` is empty.
             ImportError: If ``transformers`` is not installed.
         """
-        if not premise.strip():
-            raise ValueError("'premise' must not be an empty string.")
-        if not hypothesis.strip():
-            raise ValueError("'hypothesis' must not be an empty string.")
+        if not ground_truth.strip():
+            raise ValueError("'ground_truth' must not be an empty string.")
+        if not model_prediction.strip():
+            raise ValueError("'model_prediction' must not be an empty string.")
 
         self._load_pipeline()
 
-        # The pipeline template makes the model evaluate:
-        # "Does this passage imply: <hypothesis>?"
-        raw: dict[str, Any] = self._pipeline(
-            premise,
-            candidate_labels=_NLI_CANDIDATE_LABELS,
-            hypothesis_template="{}",
+        # The pipeline takes a dictionary with text and text_pair for NLI
+        raw_list = self._pipeline(
+            {"text": ground_truth, "text_pair": model_prediction},
+            top_k=None,
         )
 
-        # Map label → score from the pipeline's parallel lists.
-        label_to_score: dict[str, float] = dict(zip(raw["labels"], raw["scores"]))
+        # Depending on pipeline input/output types, handle the nesting
+        scores_list = (
+            raw_list[0]
+            if isinstance(raw_list, list) and isinstance(raw_list[0], list)
+            else raw_list
+        )
+        if isinstance(scores_list, dict):
+            scores_list = [scores_list]
 
-        entailment_score: float = label_to_score.get(_ENTAILMENT_LABEL, 0.0)
-        neutral_score: float = label_to_score.get(_NEUTRAL_LABEL, 0.0)
-        contradiction_score: float = label_to_score.get(_CONTRADICTION_LABEL, 0.0)
+        # Ensure we have a config to map labels if they are returned as LABEL_0 etc.
+        id2label = self._pipeline.model.config.id2label
+
+        label_to_score: dict[str, float] = {}
+        for item in scores_list:
+            label = item["label"]
+            score = item["score"]
+            # If label is like 'LABEL_0', try to map it using config
+            if label.startswith("LABEL_") and label.replace("LABEL_", "").isdigit():
+                label_id = int(label.replace("LABEL_", ""))
+                if id2label and label_id in id2label:
+                    label = id2label[label_id]
+            label_to_score[label.lower()] = score
+
+        # NLI models usually use some variation of these strings
+        def get_score(*candidates: str) -> float:
+            for c in candidates:
+                if c in label_to_score:
+                    return label_to_score[c]
+            return 0.0
+
+        entailment_score: float = get_score("entailment", "entail")
+        neutral_score: float = get_score("neutral")
+        contradiction_score: float = get_score("contradiction", "contradict")
 
         non_entailment: float = neutral_score + contradiction_score
         is_hallucination: bool = non_entailment > self._threshold
@@ -226,19 +250,19 @@ class NLIHallucinationDetector:
             neutral_score=neutral_score,
             contradiction_score=contradiction_score,
             threshold=self._threshold,
-            raw_output=raw,
+            raw_output={"raw_list": raw_list},
         )
 
     def detect_batch(
         self,
-        premises: list[str],
-        hypotheses: list[str],
+        ground_truths: list[str],
+        model_predictions: list[str],
     ) -> list[NLIResult]:
         """Run hallucination detection over a parallel batch of pairs.
 
         Args:
-            premises: List of authoritative context strings.
-            hypotheses: List of model-generated claims to check.
+            ground_truths: List of authoritative ground truth strings.
+            model_predictions: List of model-generated claims to check.
 
         Returns:
             A list of :class:`NLIResult` objects, one per input pair.
@@ -246,12 +270,17 @@ class NLIHallucinationDetector:
         Raises:
             ValueError: If the input lists have different lengths or are empty.
         """
-        if not premises or not hypotheses:
-            raise ValueError("Both 'premises' and 'hypotheses' must be non-empty lists.")
-        if len(premises) != len(hypotheses):
+        if not ground_truths or not model_predictions:
             raise ValueError(
-                "Lengths of 'premises' and 'hypotheses' must match. "
-                f"Got premises={len(premises)}, hypotheses={len(hypotheses)}."
+                "Both 'ground_truths' and 'model_predictions' must be non-empty lists."
+            )
+        if len(ground_truths) != len(model_predictions):
+            raise ValueError(
+                "Lengths of 'ground_truths' and 'model_predictions' must match. "
+                f"Got ground_truths={len(ground_truths)}, model_predictions={len(model_predictions)}."
             )
 
-        return [self.detect(premise=p, hypothesis=h) for p, h in zip(premises, hypotheses)]
+        return [
+            self.detect(ground_truth=gt, model_prediction=pred)
+            for gt, pred in zip(ground_truths, model_predictions)
+        ]

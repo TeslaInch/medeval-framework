@@ -24,7 +24,7 @@ from medeval import (
     export_report_to_json,
 )
 from medeval.models.mock import MockConnector
-from medeval.safety import SafetySuite, SickleCellSafetyChecker
+from medeval.safety import SafetySuite, SemanticSafetyChecker, SickleCellSafetyChecker
 
 
 def main() -> None:
@@ -91,9 +91,11 @@ def main() -> None:
 
     # 4. Set up the Generalised Safety Suite
     # We construct a composite SafetySuite and register our SCD safety checker.
+    # We also add the new SemanticSafetyChecker as an advanced supplementary net.
     print("Constructing clinical safety suite...")
     safety_suite = SafetySuite()
     safety_suite.add_checker(SickleCellSafetyChecker())
+    safety_suite.add_checker(SemanticSafetyChecker())
 
     # 5. Initialize the Pipeline Orchestrator (BenchmarkRunner)
     print("Initialising benchmark orchestrator...")

@@ -30,7 +30,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from .calibration import calculate_ece
+from .calibration import calculate_brier_score, calculate_ece, calculate_mce
 from .structures import EvaluationReport, MedicalEvalSample
 
 logger = logging.getLogger(__name__)
@@ -152,15 +152,15 @@ class ReportGenerator:
                 all_violations.append({"sample_id": sample.id, "codes": codes})
         return all_violations
 
-    def _aggregate_ece(self) -> float | None:
-        """Compute ECE from samples that carry ``y_true`` and ``y_prob``.
+    def _aggregate_calibration(self) -> dict[str, float]:
+        """Compute calibration metrics (ECE, MCE, Brier Score) from samples.
 
-        Samples without both keys are silently skipped. Requires at least 2
-        eligible samples to produce a meaningful ECE.
+        Samples without both `y_true` and `y_prob` keys are silently skipped.
+        Requires at least 2 eligible samples to produce meaningful metrics.
 
         Returns:
-            ECE float in [0, 1], or ``None`` if fewer than 2 eligible samples
-            exist.
+            A dictionary containing 'ece', 'mce', and 'brier_score'. Empty if
+            fewer than 2 eligible samples exist.
         """
         y_true: list[int] = []
         y_prob: list[float] = []
@@ -171,10 +171,16 @@ class ReportGenerator:
                 y_prob.append(float(sample.metadata[_KEY_Y_PROB]))
 
         if len(y_true) < 2:
-            logger.warning("Fewer than 2 samples have calibration data; skipping ECE calculation.")
-            return None
+            logger.warning(
+                "Fewer than 2 samples have calibration data; skipping calibration metrics."
+            )
+            return {}
 
-        return calculate_ece(y_true, y_prob)
+        return {
+            "ece": calculate_ece(y_true, y_prob),
+            "mce": calculate_mce(y_true, y_prob),
+            "brier_score": calculate_brier_score(y_true, y_prob),
+        }
 
     # ------------------------------------------------------------------
     # Public interface
@@ -202,9 +208,7 @@ class ReportGenerator:
         if hallucination_rate is not None:
             metrics["hallucination_rate"] = hallucination_rate
 
-        ece = self._aggregate_ece()
-        if ece is not None:
-            metrics["ece"] = ece
+        metrics.update(self._aggregate_calibration())
 
         safety_violations = self._aggregate_safety_violations()
         metrics["safety_violation_count"] = float(len(safety_violations))

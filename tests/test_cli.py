@@ -157,12 +157,13 @@ class TestCLIEvaluationExecution:
             use_semantic_similarity=True,
             bertscore_model="distilbert-base-uncased",
             hallucination=True,
-            nli_model="microsoft/deberta-v3-large-mnli",
+            nli_model="cross-encoder/nli-deberta-v3-large",
             nli_threshold=0.5,
             device="cpu",
             ignore_errors=False,
             framework_version="0.1.0",
             verbose=True,
+            trust_remote_code=False,
         )
 
         # 3. Execute

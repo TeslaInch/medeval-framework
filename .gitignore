@@ -6,3 +6,4 @@ build/
 *.egg-info/
 .env
 venv/
+mock_report.json

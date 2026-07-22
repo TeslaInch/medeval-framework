@@ -22,8 +22,8 @@ except FileNotFoundError:
     long_description = "medeval: A rigorous open-source benchmarking framework for medical LLMs."
 
 setup(
-    name="medeval",
-    version="0.1.0",
+    name="medeval-framework",
+    version="0.1.1",
     author="medeval contributors",
     description=(
         "An open-source Python framework for rigorously benchmarking medical LLMs "
@@ -53,6 +53,8 @@ setup(
             "evaluate>=0.4.0",
             "datasets>=2.14.0",
             "torch>=2.0.0",
+            "bert_score>=0.3.13",
+            "peft>=0.5.0",
         ],
         # Developer / test tools.
         "dev": [
@@ -67,6 +69,8 @@ setup(
             "evaluate>=0.4.0",
             "datasets>=2.14.0",
             "torch>=2.0.0",
+            "bert_score>=0.3.13",
+            "peft>=0.5.0",
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
             "ruff>=0.1.0",

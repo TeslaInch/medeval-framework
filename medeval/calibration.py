@@ -139,3 +139,81 @@ def calculate_ece(
         ece += bin_weight * abs(bin_accuracy - bin_confidence)
 
     return float(ece)
+
+
+def calculate_mce(
+    y_true: list[int],
+    y_prob: list[float],
+    n_bins: int = 10,
+) -> float:
+    """Compute the Maximum Calibration Error (MCE).
+
+    MCE measures the worst-case gap between a model's confidence and its
+    actual accuracy across bins. It is especially important in high-risk
+    domains like medicine where the worst-case overconfidence can be lethal.
+
+    Args:
+        y_true: Binary ground-truth labels (0 or 1).
+        y_prob: Predicted probability for the positive class [0, 1].
+        n_bins: Number of equal-width bins. Defaults to 10.
+
+    Returns:
+        The Maximum Calibration Error as a float in [0, 1].
+    """
+    if len(y_true) == 0 or len(y_prob) == 0:
+        raise ValueError("y_true and y_prob must not be empty.")
+    if len(y_true) != len(y_prob):
+        raise ValueError("y_true and y_prob must have the same length.")
+
+    labels = np.asarray(y_true, dtype=np.int64)
+    probs = np.asarray(y_prob, dtype=np.float64)
+
+    bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_indices = np.clip(np.digitize(probs, bin_edges) - 1, 0, n_bins - 1)
+
+    mce: float = 0.0
+
+    for bin_idx in range(n_bins):
+        mask = bin_indices == bin_idx
+        bin_size = int(mask.sum())
+
+        if bin_size == 0:
+            continue
+
+        bin_accuracy = float(labels[mask].mean())
+        bin_confidence = float(probs[mask].mean())
+
+        error = abs(bin_accuracy - bin_confidence)
+        if error > mce:
+            mce = error
+
+    return float(mce)
+
+
+def calculate_brier_score(
+    y_true: list[int],
+    y_prob: list[float],
+) -> float:
+    """Compute the Brier Score for probability calibration.
+
+    The Brier Score is the mean squared difference between the predicted
+    probability and the actual outcome. A lower score indicates better
+    calibration and accuracy.
+
+    Args:
+        y_true: Binary ground-truth labels (0 or 1).
+        y_prob: Predicted probability for the positive class [0, 1].
+
+    Returns:
+        The Brier Score as a float in [0, 1].
+    """
+    if len(y_true) == 0 or len(y_prob) == 0:
+        raise ValueError("y_true and y_prob must not be empty.")
+    if len(y_true) != len(y_prob):
+        raise ValueError("y_true and y_prob must have the same length.")
+
+    labels = np.asarray(y_true, dtype=np.float64)
+    probs = np.asarray(y_prob, dtype=np.float64)
+
+    brier_score = np.mean((probs - labels) ** 2)
+    return float(brier_score)

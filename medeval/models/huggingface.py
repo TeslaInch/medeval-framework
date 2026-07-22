@@ -34,11 +34,13 @@ class HuggingFaceConnector(BaseModelConnector):
         model_name: str,
         device: str = "cpu",
         generation_kwargs: dict[str, Any] | None = None,
+        trust_remote_code: bool = False,
     ) -> None:
         """Initialise the connector with model name, target device and options."""
         super().__init__(model_name=model_name)
         self._device = device
         self._generation_kwargs = generation_kwargs or {}
+        self._trust_remote_code = trust_remote_code
         self._tokenizer: Any = None
         self._model: Any = None
 
@@ -57,8 +59,43 @@ class HuggingFaceConnector(BaseModelConnector):
             ) from exc
 
         logger.info("Initializing HuggingFace model %s on %s...", self.model_name, self._device)
-        self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)  # type: ignore[no-untyped-call]
-        self._model = AutoModelForCausalLM.from_pretrained(self.model_name)  # type: ignore[no-untyped-call]
+        try:
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name, trust_remote_code=self._trust_remote_code
+            )  # type: ignore[no-untyped-call]
+            self._model = AutoModelForCausalLM.from_pretrained(
+                self.model_name, trust_remote_code=self._trust_remote_code
+            )  # type: ignore[no-untyped-call]
+        except (ValueError, OSError) as exc:
+            # Fallback for PEFT / LoRA Adapters
+            if (
+                "Unrecognized model" in str(exc)
+                or "not found" in str(exc)
+                or "config.json" in str(exc)
+            ):
+                try:
+                    from peft import (  # type: ignore[import-untyped, import-not-found]
+                        AutoPeftModelForCausalLM,
+                        PeftConfig,
+                    )
+                except ImportError as peft_exc:
+                    raise ImportError(
+                        f"Failed to load {self.model_name} as a standard model. If this is a PEFT/LoRA adapter, "
+                        "you must install the 'peft' library: pip install peft"
+                    ) from peft_exc
+
+                logger.info("Detected PEFT adapter. Loading base model via peft...")
+                peft_config = PeftConfig.from_pretrained(self.model_name)
+                base_model = peft_config.base_model_name_or_path
+                self._tokenizer = AutoTokenizer.from_pretrained(
+                    base_model, trust_remote_code=self._trust_remote_code
+                )  # type: ignore[no-untyped-call]
+                self._model = AutoPeftModelForCausalLM.from_pretrained(
+                    self.model_name, trust_remote_code=self._trust_remote_code
+                )  # type: ignore[no-untyped-call]
+            else:
+                raise
+
         self._model.to(self._device)
         self._model.eval()
 

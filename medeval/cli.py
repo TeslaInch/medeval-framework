@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def resolve_model_connector(model_name: str, device: str) -> BaseModelConnector:
+def resolve_model_connector(
+    model_name: str, device: str, trust_remote_code: bool = False
+) -> BaseModelConnector:
     """Map a model string identifier to the corresponding connector class.
 
     Rules:
@@ -44,6 +46,7 @@ def resolve_model_connector(model_name: str, device: str) -> BaseModelConnector:
     Args:
         model_name: Model identifier string.
         device: Device Index string (e.g. 'cpu', 'cuda:0').
+        trust_remote_code: Boolean to trust remote code execution.
 
     Returns:
         An instance of BaseModelConnector.
@@ -60,7 +63,9 @@ def resolve_model_connector(model_name: str, device: str) -> BaseModelConnector:
         logger.info(
             "CLI: Instantiating HuggingFaceConnector for model '%s' on %s", clean_name, device
         )
-        return HuggingFaceConnector(model_name=clean_name, device=device)
+        return HuggingFaceConnector(
+            model_name=clean_name, device=device, trust_remote_code=trust_remote_code
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +95,15 @@ def run_evaluation(args: argparse.Namespace) -> int:
 
     try:
         # 2. Instantiate Model Connector
-        model = resolve_model_connector(args.model, args.device)
+        if args.trust_remote_code:
+            print(
+                "\n[WARNING] --trust-remote-code is enabled. Ensure you trust the model source as this allows remote code execution.",
+                file=sys.stderr,
+            )
+
+        model = resolve_model_connector(
+            args.model, args.device, trust_remote_code=args.trust_remote_code
+        )
 
         # 3. Load dataset
         loader = BenchmarkLoader(split=args.split, max_samples=args.limit)
@@ -237,8 +250,8 @@ def create_parser() -> argparse.ArgumentParser:
     parser.set_defaults(hallucination=True)
     parser.add_argument(
         "--nli-model",
-        default="microsoft/deberta-v3-large-mnli",
-        help="NLI model checkpoint for hallucination verification. Defaults to 'microsoft/deberta-v3-large-mnli'.",
+        default="cross-encoder/nli-deberta-v3-large",
+        help="NLI model checkpoint for hallucination verification. Defaults to 'cross-encoder/nli-deberta-v3-large'.",
     )
     parser.add_argument(
         "--nli-threshold",
@@ -252,6 +265,11 @@ def create_parser() -> argparse.ArgumentParser:
         "--device",
         default="cpu",
         help="Execution device Index for Hugging Face and PyTorch models (e.g. 'cpu', 'cuda:0').",
+    )
+    parser.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Enable trust_remote_code for Hugging Face models. WARNING: Allows remote code execution.",
     )
     parser.add_argument(
         "--ignore-errors",
