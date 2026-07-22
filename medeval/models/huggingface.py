@@ -80,7 +80,9 @@ class HuggingFaceConnector(BaseModelConnector):
                                 cache.update(key_states, value_states, layer_idx)
                         return cache
 
-                    DynamicCache.from_legacy_cache = staticmethod(_from_legacy_cache)  # type: ignore[attr-defined]
+                    setattr(  # noqa: B010
+                        DynamicCache, "from_legacy_cache", staticmethod(_from_legacy_cache)
+                    )
             except Exception:
                 pass
         except ImportError as exc:
