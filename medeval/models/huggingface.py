@@ -59,15 +59,14 @@ class HuggingFaceConnector(BaseModelConnector):
 
                 if not hasattr(DynamicCache, "from_legacy_cache"):
 
-                    @classmethod
-                    def _from_legacy_cache(cls: type[Any], past_key_values: Any = None) -> Any:
-                        cache = cls()
+                    def _from_legacy_cache(past_key_values: Any = None) -> Any:
+                        cache = DynamicCache()
                         if past_key_values is not None:
                             for layer_idx, (key_states, value_states) in enumerate(past_key_values):
                                 cache.update(key_states, value_states, layer_idx)
                         return cache
 
-                    DynamicCache.from_legacy_cache = _from_legacy_cache
+                    DynamicCache.from_legacy_cache = staticmethod(_from_legacy_cache)  # type: ignore[attr-defined]
             except Exception:
                 pass
         except ImportError as exc:
