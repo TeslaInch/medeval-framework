@@ -53,6 +53,20 @@ class HuggingFaceConnector(BaseModelConnector):
             import torch  # noqa: PLC0415, F401
             from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: PLC0415
 
+            # Safeguard against Kaggle environment's outdated torchao (< 0.16.0) causing PEFT adapter crash
+            try:
+                import sys  # noqa: PLC0415
+
+                import torchao  # type: ignore[import-not-found, import-untyped] # noqa: PLC0415
+                from packaging import version  # noqa: PLC0415
+
+                if version.parse(getattr(torchao, "__version__", "0.0.0")) < version.parse(
+                    "0.16.0"
+                ):
+                    sys.modules["torchao"] = None  # type: ignore[assignment]
+            except Exception:
+                pass
+
             # Monkey-patch DynamicCache for legacy remote code compatibility (e.g. Phi-3 custom modeling_phi3.py)
             try:
                 from transformers.cache_utils import DynamicCache  # noqa: PLC0415
