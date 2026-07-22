@@ -1,9 +1,11 @@
-# medeval
+# medeval-framework
 
+[![PyPI version](https://img.shields.io/pypi/v/medeval-framework.svg)](https://pypi.org/project/medeval-framework/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Support](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![CI Pipeline](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml)
 
-A rigorous, open-source Python evaluation framework designed to benchmark medical Large Language Models (LLMs) for clinical accuracy, hallucination rates, and safety.
+A rigorous, open-source Python evaluation framework designed to benchmark medical Large Language Models (LLMs) for clinical accuracy, hallucination rates, model calibration, and safety.
 
 ---
 
@@ -11,6 +13,8 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 
 - [Key Features](#-key-features)
 - [Installation](#-installation)
+  - [Install via Pip (Recommended)](#1-install-via-pip-recommended)
+  - [Install from Source](#2-install-from-source)
 - [Quickstart](#-quickstart)
   - [Command Line Interface (CLI)](#1-command-line-interface-cli)
   - [Python Orchestration API](#2-python-orchestration-api)
@@ -23,34 +27,44 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 ## 🌟 Key Features
 
 - **Multi-Dataset Benchmarks**: Out-of-the-box loaders for standardized medical datasets (MedQA, PubMedQA).
-- **Clinical Safety Audits (Contraindications)**: Deterministic, evidence-based safety checkers to scan LLM recommendations for dangerous management errors in **Sickle Cell Disease** and **Cardiology**.
-- **Unified Model Connectors**: Modular drivers to query API models (OpenAI) or execute local PyTorch/Transformers weights (Hugging Face) through a single interface.
-- **NLP Evaluation Engines**: Normalized string similarity (Exact Match) and semantic similarity scoring (BERTScore).
-- **Hallucination Detection**: Natural Language Inference (NLI) zero-shot classification to verify if model claims are supported by medical context.
-- **Calibration Engine**: Vectorized Expected Calibration Error (ECE) calculation to measure if model confidence correlates with clinical accuracy.
-- **Pipeline Orchestration & CLI**: Fast CLI interface and programmatic runner class to query, score, inspect, and export report files.
+- **Dual Clinical Safety Audit**:
+  - *Deterministic Checker*: Fast regex scanning for explicit clinical contraindications in **Sickle Cell Disease** and **Cardiology**.
+  - *Semantic Safety Net*: NLI-based hazard verification (`SemanticSafetyChecker`) to flag context-dependent medical hazards.
+- **Unified Model & PEFT Connectors**: Modular drivers to query API models (OpenAI) or execute local PyTorch/Transformers weights (Hugging Face) and PEFT/LoRA adapters smoothly.
+- **NLP & Semantic Accuracy Engines**: Exact Match comparison and BERTScore semantic similarity scoring (`SemanticSimilarityScorer`).
+- **NLI Hallucination Detection**: Cross-encoder Natural Language Inference (`NLIHallucinationDetector`) evaluating predictions (`hypothesis`) against authoritative clinical facts (`ground_truth`).
+- **Advanced Calibration Suite**: Vectorized calculation of **Expected Calibration Error (ECE)**, **Maximum Calibration Error (MCE)**, and **Brier Score**.
+- **CLI & Report Generator**: Command-line `medeval` interface and structured JSON report exporter for auditability.
 
 ---
 
 ## ⚙️ Installation
 
-To install `medeval` along with target optional dependency groups:
+### 1. Install via Pip (Recommended)
+
+`medeval-framework` is available on PyPI. You can install the core framework or include optional ML/NLP extras:
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/medeval-framework.git
+# Core installation (numpy-only, lightweight)
+pip install medeval-framework
+
+# Full ML & NLP stack (Transformers, PyTorch, evaluate, datasets, bert_score, peft)
+pip install medeval-framework[nlp]
+
+# Complete installation including development and testing tools
+pip install medeval-framework[all]
+```
+
+### 2. Install from Source
+
+For development or contributing:
+
+```bash
+# Clone the repository
+git clone https://github.com/TeslaInch/medeval-framework.git
 cd medeval-framework
 
-# 2. Install Core (numpy-only)
-pip install -e .
-
-# 3. Install NLP/ML Packages (Transformers, PyTorch, evaluate, datasets)
-pip install -e ".[nlp]"
-
-# 4. Install Dev Tools (pytest, pytest-cov, ruff, mypy)
-pip install -e ".[dev]"
-
-# 5. Install Everything
+# Install editable package with all extras
 pip install -e ".[all]"
 ```
 
@@ -60,68 +74,62 @@ pip install -e ".[all]"
 
 ### 1. Command Line Interface (CLI)
 
-Run evaluations directly from your terminal. If using Hugging Face datasets or NLP scorers, ensure the `[nlp]` extra is installed.
+Run evaluations directly from your terminal using the `medeval` command:
 
 ```bash
-# Get usage help
+# Get CLI usage help
 medeval --help
 
 # Run evaluation on MedQA using OpenAI GPT-4o with Sickle Cell safety audit
-export OPENAI_API_KEY="your-key"
+export OPENAI_API_KEY="your-api-key"
 medeval --model gpt-4o --dataset medqa --limit 20 --output report.json
 
-# Run evaluation using local Hugging Face checkpoint on GPU
+# Run evaluation on Hugging Face base model or PEFT adapter on GPU
 medeval \
-  --model "meta-llama/Llama-2-7b-chat-hf" \
-  --dataset pubmedqa \
+  --model "microsoft/Phi-3.5-mini-instruct" \
+  --dataset medqa \
   --device "cuda:0" \
   --limit 50 \
-  --output report.json
+  --output base_model_report.json
 ```
 
 ### 2. Python Orchestration API
 
-Create customized evaluation loops using the `BenchmarkRunner` API. A complete executable offline script is available at `example.py`.
+Build customized evaluation pipelines using the `BenchmarkRunner` API. An executable demonstration is available in `example.py`:
 
 ```python
-import os
-from medeval import BenchmarkRunner, ExactMatchScorer, MedicalEvalSample, export_report_to_json
-from medeval.models.mock import MockConnector
-from medeval.safety import SafetySuite, SickleCellSafetyChecker, CardiologySafetyChecker
+from medeval.benchmark import BenchmarkLoader
+from medeval.models.huggingface import HuggingFaceConnector
+from medeval.runner import BenchmarkRunner
+from medeval.safety import SickleCellSafetyChecker, SemanticSafetyChecker, SafetySuite
+from medeval.report import export_report_to_json
 
-# 1. Define dataset samples
-samples = [
-    MedicalEvalSample(
-        id="case-1",
-        question="Should I apply ice compression to a patient in sickle cell crisis?",
-        ground_truth="No, cold therapy causes vasoconstriction which exacerbates crisis.",
-        model_prediction="",
-        metadata={"context": "Dehydration, cold, and hypoxia trigger sickling."}
-    )
-]
+# 1. Load benchmark dataset
+loader = BenchmarkLoader(split="test", max_samples=10)
+samples = loader.load_medqa()
 
-# 2. Setup model connector (Mock, HF, or OpenAI)
-model = MockConnector(
-    model_name="mock-model-7b",
-    predictions=["You should apply ice packs immediately to mitigate swelling."],
-    probabilities=[[0.92]]
+# 2. Instantiate Model Connector (Hugging Face base or PEFT adapter)
+model = HuggingFaceConnector(
+    model_name="microsoft/Phi-3.5-mini-instruct",
+    device="cuda:0"
 )
 
-# 3. Construct Composite Safety Suite
-safety_suite = SafetySuite()
-safety_suite.add_checker(SickleCellSafetyChecker())
-safety_suite.add_checker(CardiologySafetyChecker())
+# 3. Setup Safety Suite (Deterministic + DeBERTa NLI Semantic Net)
+safety_suite = SafetySuite([
+    SickleCellSafetyChecker(),
+    SemanticSafetyChecker(device=0)
+])
 
-# 4. Initialize and execute runner
+# 4. Initialize and execute BenchmarkRunner
 runner = BenchmarkRunner(
     model=model,
-    scorers=[ExactMatchScorer()],
-    safety_checker=safety_suite
+    safety_checker=safety_suite,
+    ignore_errors=True
 )
 report = runner.run(samples)
 
-# 5. Export Report
-export_report_to_json(report, "medeval_report.json")
+# 5. Export structured JSON report
+export_report_to_json(report, "evaluation_report.json")
 ```
 
 ---
@@ -131,18 +139,18 @@ export_report_to_json(report, "medeval_report.json")
 ```
 medeval/
 ├── medeval/
-│   ├── models/               # Model Connectors (Base, HF, OpenAI, Mock)
-│   ├── safety/               # Safety Checkers (Base, SickleCell, Cardiology, SafetySuite)
+│   ├── models/               # Model Connectors (Base, HF, PEFT, OpenAI, Mock)
+│   ├── safety/               # Safety Checkers (SickleCell, Cardiology, Semantic, SafetySuite)
 │   ├── accuracy.py           # Scorers (Exact Match, BERTScore F1)
-│   ├── benchmark.py          # Dataset Loader (PubMedQA, MedQA)
-│   ├── calibration.py        # Vectorized ECE Calculation Engine
-│   ├── hallucination.py      # NLI Zero-Shot Hallucination Detector
+│   ├── benchmark.py          # Benchmark Loaders (MedQA, PubMedQA)
+│   ├── calibration.py        # Calibration Suite (ECE, MCE, Brier Score)
+│   ├── hallucination.py      # NLI Cross-Encoder Hallucination Engine
 │   ├── report.py             # Metric aggregation & JSON serialization
-│   ├── runner.py             # BenchmarkRunner orchestrator
-│   └── structures.py         # MedicalEvalSample & EvaluationReport contracts
-├── tests/                    # 165+ Offline Unit & Integration Tests
+│   ├── runner.py             # BenchmarkRunner pipeline orchestrator
+│   └── structures.py         # Data contracts (MedicalEvalSample & EvaluationReport)
+├── tests/                    # 169 Unit & Integration Tests
 ├── pyproject.toml            # Ruff & Mypy configurations
-├── setup.py                  # Build and Packaging entrypoints
+├── setup.py                  # PyPI Packaging configuration
 └── requirements.txt          # Package dependencies
 ```
 
@@ -150,15 +158,13 @@ medeval/
 
 ## 🧪 Development & Testing
 
-[![CI Pipeline](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/TeslaInch/medeval-framework/actions/workflows/ci.yml)
-
-Ensure style alignment and type safety before committing changes. The GitHub Actions CI pipeline automatically runs these checks on every pull request.
+Ensure style alignment and type safety before submitting pull requests:
 
 ```bash
-# Run pytest with code coverage
-python -m pytest tests/ -v --cov=medeval --cov-report=term-missing
+# Run full pytest test suite
+pytest
 
-# Run Ruff style check
+# Run Ruff style & linting check
 ruff check .
 
 # Run Mypy static type verification
@@ -169,4 +175,4 @@ mypy medeval/
 
 ## 📄 License
 
-This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for details.
