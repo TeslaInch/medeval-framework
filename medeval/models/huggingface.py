@@ -52,6 +52,24 @@ class HuggingFaceConnector(BaseModelConnector):
         try:
             import torch  # noqa: PLC0415, F401
             from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: PLC0415
+
+            # Monkey-patch DynamicCache for legacy remote code compatibility (e.g. Phi-3 custom modeling_phi3.py)
+            try:
+                from transformers.cache_utils import DynamicCache  # noqa: PLC0415
+
+                if not hasattr(DynamicCache, "from_legacy_cache"):
+
+                    @classmethod
+                    def _from_legacy_cache(cls: type[Any], past_key_values: Any = None) -> Any:
+                        cache = cls()
+                        if past_key_values is not None:
+                            for layer_idx, (key_states, value_states) in enumerate(past_key_values):
+                                cache.update(key_states, value_states, layer_idx)
+                        return cache
+
+                    DynamicCache.from_legacy_cache = _from_legacy_cache
+            except Exception:
+                pass
         except ImportError as exc:
             raise ImportError(
                 "The 'transformers' and 'torch' packages are required for HuggingFaceConnector. "
