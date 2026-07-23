@@ -77,31 +77,53 @@ pip install -e ".[all]"
 Run evaluations directly from your terminal using the `medeval` command:
 
 ```bash
-# Get CLI usage help
+# Get full usage help and flag options
 medeval --help
 
-# Run evaluation on MedQA using OpenAI GPT-4o with Sickle Cell safety audit
+# Run evaluation on MedQA using OpenAI GPT-4o with Sickle Cell safety audit (default)
 export OPENAI_API_KEY="your-api-key"
 medeval --model gpt-4o --dataset medqa --limit 20 --output report.json
 
-# Run evaluation on Hugging Face base model or PEFT adapter on GPU
+# Run evaluation on Hugging Face model or PEFT adapter with explicit safety selection
+# Options for --safety: sickle_cell (default), none
 medeval \
   --model "microsoft/Phi-3.5-mini-instruct" \
   --dataset medqa \
+  --safety sickle_cell \
   --device "cuda:0" \
   --limit 50 \
   --output base_model_report.json
 ```
 
+#### CLI Options Reference
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `--model` *(required)* | Model identifier (HuggingFace repo, PEFT adapter, `gpt-4o`, `openai:...`, or `mock-...`). | - |
+| `--dataset` *(required)* | Benchmark dataset: `medqa` or `pubmedqa`. | - |
+| `--output` *(required)* | File path where JSON report is saved. | - |
+| `--safety` | Safety checker to run: `sickle_cell` (SCD contraindications) or `none`. | `sickle_cell` |
+| `--device` | PyTorch device index (`cpu`, `cuda:0`, etc.). | `cpu` |
+| `--limit` | Maximum number of samples to process. | All |
+| `--no-hallucination` | Disable NLI hallucination check to increase speed. | Enabled |
+| `--no-semantic-similarity` | Disable BERTScore semantic scoring to increase speed. | Enabled |
+| `--trust-remote-code` | Enable `trust_remote_code=True` for Hugging Face models. | `False` |
+
+---
+
 ### 2. Python Orchestration API
 
-Build customized evaluation pipelines using the `BenchmarkRunner` API. An executable demonstration is available in `example.py`:
+Create customized evaluation pipelines tailored to specific clinical domains. You can configure individual safety checkers (`SickleCellSafetyChecker`, `CardiologySafetyChecker`, `SemanticSafetyChecker`) or combine them into a composite `SafetySuite`:
 
 ```python
 from medeval.benchmark import BenchmarkLoader
 from medeval.models.huggingface import HuggingFaceConnector
 from medeval.runner import BenchmarkRunner
-from medeval.safety import SickleCellSafetyChecker, SemanticSafetyChecker, SafetySuite
+from medeval.safety import (
+    SickleCellSafetyChecker,
+    CardiologySafetyChecker,
+    SemanticSafetyChecker,
+    SafetySuite,
+)
 from medeval.report import export_report_to_json
 
 # 1. Load benchmark dataset
@@ -114,16 +136,21 @@ model = HuggingFaceConnector(
     device="cuda:0"
 )
 
-# 3. Setup Safety Suite (Deterministic + DeBERTa NLI Semantic Net)
-safety_suite = SafetySuite([
-    SickleCellSafetyChecker(),
-    SemanticSafetyChecker(device=0)
-])
+# 3. Configure Safety Checker
+# Option A: Domain-specific checker (e.g. Sickle Cell Disease only)
+safety_checker = SickleCellSafetyChecker()
+
+# Option B: Multi-domain SafetySuite (Sickle Cell + Cardiology + NLI Semantic Net)
+# safety_suite = SafetySuite([
+#     SickleCellSafetyChecker(),
+#     CardiologySafetyChecker(),
+#     SemanticSafetyChecker(device=0)
+# ])
 
 # 4. Initialize and execute BenchmarkRunner
 runner = BenchmarkRunner(
     model=model,
-    safety_checker=safety_suite,
+    safety_checker=safety_checker,
     ignore_errors=True
 )
 report = runner.run(samples)
