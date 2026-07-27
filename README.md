@@ -131,10 +131,7 @@ loader = BenchmarkLoader(split="test", max_samples=10)
 samples = loader.load_medqa()
 
 # 2. Instantiate Model Connector (Hugging Face base or PEFT adapter)
-model = HuggingFaceConnector(
-    model_name="microsoft/Phi-3.5-mini-instruct",
-    device="cuda:0"
-)
+model = HuggingFaceConnector(model_name="microsoft/Phi-3.5-mini-instruct", device="cuda:0")
 
 # 3. Configure Safety Checker
 # Option A: Domain-specific checker (e.g. Sickle Cell Disease only)
@@ -148,11 +145,7 @@ safety_checker = SickleCellSafetyChecker()
 # ])
 
 # 4. Initialize and execute BenchmarkRunner
-runner = BenchmarkRunner(
-    model=model,
-    safety_checker=safety_checker,
-    ignore_errors=True
-)
+runner = BenchmarkRunner(model=model, safety_checker=safety_checker, ignore_errors=True)
 report = runner.run(samples)
 
 # 5. Export structured JSON report
