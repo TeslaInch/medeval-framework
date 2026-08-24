@@ -277,3 +277,61 @@ class TestExportReportToJson:
         """TypeError must be raised when a non-EvaluationReport is passed."""
         with pytest.raises(TypeError, match="EvaluationReport"):
             export_report_to_json({"not": "a report"}, str(tmp_path / "out.json"))  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# export_report_to_markdown & html & comparison tests
+# ---------------------------------------------------------------------------
+
+
+class TestExportersAndComparison:
+    """Tests for Markdown, HTML exporters and multi-model comparison."""
+
+    def _make_report(self, name: str = "model-a") -> EvaluationReport:
+        return EvaluationReport(
+            model_name=name,
+            framework_version="0.1.5",
+            total_samples=10,
+            metrics={"accuracy": 0.8, "ece": 0.05},
+            safety_violations=[{"sample_id": "q1", "codes": ["COLD_THERAPY"]}],
+        )
+
+    def test_export_report_to_markdown(self, tmp_path: Path) -> None:
+        """Markdown export file must exist and contain key report headings."""
+        from medeval.report import export_report_to_markdown
+
+        report = self._make_report()
+        out_path = tmp_path / "report.md"
+        result = export_report_to_markdown(report, str(out_path))
+        assert result.exists()
+        content = out_path.read_text(encoding="utf-8")
+        assert "Medical LLM Evaluation Report: model-a" in content
+        assert "Aggregate Evaluation Metrics" in content
+
+    def test_export_report_to_html(self, tmp_path: Path) -> None:
+        """HTML export file must exist and contain styled HTML components."""
+        from medeval.report import export_report_to_html
+
+        report = self._make_report()
+        out_path = tmp_path / "report.html"
+        result = export_report_to_html(report, str(out_path))
+        assert result.exists()
+        content = out_path.read_text(encoding="utf-8")
+        assert "<html" in content
+        assert "model-a" in content
+
+    def test_compare_reports_and_export(self, tmp_path: Path) -> None:
+        """compare_reports must aggregate multiple reports and export to Markdown."""
+        from medeval.comparison import compare_reports, export_comparison_to_markdown
+
+        r1 = self._make_report("base-model")
+        r2 = self._make_report("adapter-model")
+        comp = compare_reports([r1, r2])
+        assert comp["models"] == ["base-model", "adapter-model"]
+        assert "accuracy" in comp["metrics"]
+
+        out_path = tmp_path / "comparison.md"
+        res = export_comparison_to_markdown([r1, r2], str(out_path))
+        assert res.exists()
+        text = out_path.read_text(encoding="utf-8")
+        assert "Side-by-Side Metrics Matrix" in text

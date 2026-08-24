@@ -22,7 +22,11 @@ from .models.base import BaseModelConnector
 from .models.huggingface import HuggingFaceConnector
 from .models.mock import MockConnector
 from .models.openai_connector import OpenAIConnector
-from .report import export_report_to_json
+from .report import (
+    export_report_to_html,
+    export_report_to_json,
+    export_report_to_markdown,
+)
 from .runner import BenchmarkRunner
 from .safety.sickle_cell import SickleCellSafetyChecker
 
@@ -35,19 +39,25 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_model_connector(
-    model_name: str, device: str, trust_remote_code: bool = False
+    model_name: str,
+    device: str,
+    trust_remote_code: bool = False,
+    api_key: str | None = None,
+    api_base_url: str | None = None,
 ) -> BaseModelConnector:
     """Map a model string identifier to the corresponding connector class.
 
     Rules:
       - If it starts with 'mock-', returns MockConnector.
-      - If it starts with 'gpt-' or 'openai:', returns OpenAIConnector.
+      - If it matches API prefixes, returns OpenAIConnector.
       - Otherwise, defaults to HuggingFaceConnector.
 
     Args:
         model_name: Model identifier string.
         device: Device Index string (e.g. 'cpu', 'cuda:0').
         trust_remote_code: Boolean to trust remote code execution.
+        api_key: Optional API key override.
+        api_base_url: Optional API base URL override.
 
     Returns:
         An instance of BaseModelConnector.
@@ -67,14 +77,14 @@ def resolve_model_connector(
     if clean_name.startswith("mock-"):
         logger.info("CLI: Instantiating MockConnector for model '%s'", clean_name)
         return MockConnector(model_name=clean_name)
-    elif any(clean_name.startswith(p) for p in api_prefixes):
+    elif any(clean_name.startswith(p) for p in api_prefixes) or api_base_url is not None:
         actual_name = clean_name
         for p in ("openai:", "agentrouter:", "openrouter:", "router:", "anthropic:"):
             if actual_name.startswith(p):
                 actual_name = actual_name.replace(p, "")
                 break
         logger.info("CLI: Instantiating OpenAIConnector for model '%s'", actual_name)
-        return OpenAIConnector(model_name=actual_name)
+        return OpenAIConnector(model_name=actual_name, api_key=api_key, base_url=api_base_url)
     else:
         logger.info(
             "CLI: Instantiating HuggingFaceConnector for model '%s' on %s", clean_name, device
@@ -118,7 +128,11 @@ def run_evaluation(args: argparse.Namespace) -> int:
             )
 
         model = resolve_model_connector(
-            args.model, args.device, trust_remote_code=args.trust_remote_code
+            args.model,
+            args.device,
+            trust_remote_code=args.trust_remote_code,
+            api_key=getattr(args, "api_key", None),
+            api_base_url=getattr(args, "api_base_url", None),
         )
 
         # 3. Load dataset
@@ -127,6 +141,10 @@ def run_evaluation(args: argparse.Namespace) -> int:
             samples = loader.load_medqa()
         elif args.dataset == "pubmedqa":
             samples = loader.load_pubmedqa()
+        elif args.dataset == "medmcqa":
+            samples = loader.load_medmcqa()
+        elif args.dataset == "mmlu_medical":
+            samples = loader.load_mmlu_medical()
         else:
             print(f"Error: Unknown dataset '{args.dataset}'.", file=sys.stderr)
             return 1
@@ -169,8 +187,14 @@ def run_evaluation(args: argparse.Namespace) -> int:
         print("\nEvaluating samples...")
         report = runner.run(samples)
 
-        # 8. Export report to JSON file
-        export_report_to_json(report, args.output)
+        # 8. Export report to file (JSON, Markdown, or HTML)
+        out_str = str(args.output).lower()
+        if out_str.endswith(".md") or out_str.endswith(".markdown"):
+            export_report_to_markdown(report, args.output)
+        elif out_str.endswith(".html") or out_str.endswith(".htm"):
+            export_report_to_html(report, args.output)
+        else:
+            export_report_to_json(report, args.output)
 
         # 9. Print results summary
         print("\n=== Evaluation Results Summary ===")
@@ -212,7 +236,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset",
         required=True,
-        choices=["medqa", "pubmedqa"],
+        choices=["medqa", "pubmedqa", "medmcqa", "mmlu_medical"],
         help="Medical dataset benchmark to evaluate on.",
     )
     parser.add_argument(
@@ -276,7 +300,17 @@ def create_parser() -> argparse.ArgumentParser:
         help="Hallucination threshold (sum of neutral + contradiction). Default 0.5.",
     )
 
-    # Execution controls
+    # Execution controls & API options
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="API Key override for OpenAI, AgentRouter, or OpenRouter models.",
+    )
+    parser.add_argument(
+        "--api-base-url",
+        default=None,
+        help="API Base URL override (e.g. 'https://agentrouter.ai/v1').",
+    )
     parser.add_argument(
         "--device",
         default="cpu",

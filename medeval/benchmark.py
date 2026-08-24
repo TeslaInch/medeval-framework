@@ -278,3 +278,111 @@ class BenchmarkLoader:
 
         logger.info("Loaded %d PubMedQA samples from split='%s'.", len(samples), self._split)
         return samples
+
+    # ------------------------------------------------------------------
+    # MedMCQA
+    # ------------------------------------------------------------------
+
+    def load_medmcqa(self) -> list[MedicalEvalSample]:
+        """Load MedMCQA dataset and map to ``MedicalEvalSample`` objects.
+
+        Uses the ``medmcqa`` HuggingFace dataset (Indian medical entrance exam questions).
+        Columns: ``question``, ``opa``, ``opb``, ``opc``, ``opd``, and ``cop`` (0..3).
+
+        Returns:
+            A list of ``MedicalEvalSample`` objects.
+        """
+        dataset_name = "medmcqa"
+        raw = self._load_hf_dataset(dataset_name)
+        raw = self._cap(raw)
+
+        samples: list[MedicalEvalSample] = []
+        option_keys = ["opa", "opb", "opc", "opd"]
+
+        for i, row in enumerate(raw):
+            options = {
+                "A": str(row.get("opa", "")),
+                "B": str(row.get("opb", "")),
+                "C": str(row.get("opc", "")),
+                "D": str(row.get("opd", "")),
+            }
+            cop_idx = row.get("cop")
+            if isinstance(cop_idx, int) and 0 <= cop_idx < len(option_keys):
+                correct_key = ["A", "B", "C", "D"][cop_idx]
+                ground_truth = options[correct_key]
+            else:
+                ground_truth = str(cop_idx)
+
+            sample = MedicalEvalSample(
+                id=str(row.get("id", f"medmcqa_{i}")),
+                question=str(row["question"]),
+                ground_truth=ground_truth,
+                model_prediction="",
+                metadata={
+                    "dataset": "medmcqa",
+                    "split": self._split,
+                    "choices": options,
+                    "exp": str(row.get("exp", "")),
+                },
+            )
+            samples.append(sample)
+
+        logger.info("Loaded %d MedMCQA samples from split='%s'.", len(samples), self._split)
+        return samples
+
+    # ------------------------------------------------------------------
+    # MMLU Medical Sub-subjects
+    # ------------------------------------------------------------------
+
+    def load_mmlu_medical(self) -> list[MedicalEvalSample]:
+        """Load MMLU medical sub-subjects and map to ``MedicalEvalSample`` objects.
+
+        Loads medical subsets from ``cais/mmlu`` (clinical_knowledge, medical_genetics,
+        anatomy, professional_medicine, college_medicine).
+
+        Returns:
+            A list of ``MedicalEvalSample`` objects.
+        """
+        sub_subjects = [
+            "clinical_knowledge",
+            "medical_genetics",
+            "anatomy",
+            "professional_medicine",
+            "college_medicine",
+        ]
+        samples: list[MedicalEvalSample] = []
+
+        for sub in sub_subjects:
+            try:
+                raw = self._load_hf_dataset("cais/mmlu", config=sub)
+            except Exception:
+                logger.warning("Could not load MMLU subset '%s', skipping.", sub)
+                continue
+
+            for i, row in enumerate(raw):
+                choices = row.get("choices", [])
+                answer_idx = row.get("answer")
+                ground_truth = (
+                    choices[answer_idx]
+                    if isinstance(answer_idx, int) and 0 <= answer_idx < len(choices)
+                    else str(answer_idx)
+                )
+
+                sample = MedicalEvalSample(
+                    id=f"mmlu_{sub}_{i}",
+                    question=str(row["question"]),
+                    ground_truth=str(ground_truth),
+                    model_prediction="",
+                    metadata={
+                        "dataset": f"mmlu_{sub}",
+                        "split": self._split,
+                        "choices": choices,
+                    },
+                )
+                samples.append(sample)
+
+        if self._max_samples is not None:
+            samples = samples[: self._max_samples]
+
+        logger.info("Loaded %d MMLU-Medical samples from split='%s'.", len(samples), self._split)
+        return samples

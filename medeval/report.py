@@ -337,3 +337,181 @@ def export_report_to_json(
 
     logger.info("EvaluationReport exported to '%s'.", output)
     return output
+
+
+def export_report_to_markdown(
+    report: EvaluationReport,
+    output_path: str,
+) -> Path:
+    """Serialise an ``EvaluationReport`` to a GitHub-flavored Markdown file.
+
+    Args:
+        report: The ``EvaluationReport`` to serialise.
+        output_path: Destination Markdown file path.
+
+    Returns:
+        A ``pathlib.Path`` object pointing to the written file.
+    """
+    if not isinstance(report, EvaluationReport):
+        raise TypeError(
+            f"'report' must be an EvaluationReport instance. Got: {type(report).__name__!r}."
+        )
+
+    output = Path(output_path)
+    safety_count = len(report.safety_violations)
+    status_badge = "🟢 PASSED" if safety_count == 0 else f"🔴 FAILED ({safety_count} violations)"
+
+    lines = [
+        f"# Medical LLM Evaluation Report: {report.model_name}",
+        "",
+        f"**Framework Version**: `medeval v{report.framework_version}`  ",
+        f"**Total Samples Evaluated**: `{report.total_samples}`  ",
+        f"**Safety Audit Status**: {status_badge}",
+        "",
+        "## 📊 Aggregate Evaluation Metrics",
+        "",
+        "| Metric | Value | Status / Description |",
+        "| :--- | :--- | :--- |",
+    ]
+
+    for metric_name, val in report.metrics.items():
+        clean_name = metric_name.replace("_", " ").title()
+        formatted_val = f"{val:.4f}" if isinstance(val, float) else str(val)
+        lines.append(f"| **{clean_name}** | `{formatted_val}` | Computed across evaluated split |")
+
+    lines.extend(
+        [
+            "",
+            "## 🚨 Clinical Safety Violations",
+            "",
+        ]
+    )
+
+    if not report.safety_violations:
+        lines.append("✨ **Zero clinical safety violations detected.**")
+    else:
+        lines.extend(
+            [
+                "| Sample ID | Violation Codes |",
+                "| :--- | :--- |",
+            ]
+        )
+        for v in report.safety_violations:
+            codes_str = ", ".join(f"`{c}`" for c in v.get("codes", []))
+            lines.append(f"| `{v.get('sample_id', 'unknown')}` | {codes_str} |")
+
+    lines.extend(
+        [
+            "",
+            "---",
+            "*Generated automatically by [medeval-framework](https://github.com/TeslaInch/medeval-framework)*",
+        ]
+    )
+
+    content = "\n".join(lines)
+    with output.open("w", encoding="utf-8") as fh:
+        fh.write(content)
+
+    logger.info("EvaluationReport exported to Markdown '%s'.", output)
+    return output
+
+
+def export_report_to_html(
+    report: EvaluationReport,
+    output_path: str,
+) -> Path:
+    """Serialise an ``EvaluationReport`` to a self-contained styled HTML page.
+
+    Args:
+        report: The ``EvaluationReport`` to serialise.
+        output_path: Destination HTML file path.
+
+    Returns:
+        A ``pathlib.Path`` object pointing to the written file.
+    """
+    if not isinstance(report, EvaluationReport):
+        raise TypeError(
+            f"'report' must be an EvaluationReport instance. Got: {type(report).__name__!r}."
+        )
+
+    output = Path(output_path)
+    safety_count = len(report.safety_violations)
+    badge_color = "#10B981" if safety_count == 0 else "#EF4444"
+    badge_text = "SAFETY AUDIT PASSED" if safety_count == 0 else f"{safety_count} SAFETY VIOLATIONS"
+
+    rows_html = ""
+    for metric_name, val in report.metrics.items():
+        clean_name = metric_name.replace("_", " ").title()
+        formatted_val = f"{val:.4f}" if isinstance(val, float) else str(val)
+        rows_html += (
+            f"<tr><td><strong>{clean_name}</strong></td><td><code>{formatted_val}</code></td></tr>"
+        )
+
+    violations_html = ""
+    if not report.safety_violations:
+        violations_html = "<p style='color: #10B981; font-weight: bold;'>✨ Zero clinical safety violations detected.</p>"
+    else:
+        violations_html = "<table class='violations-table'><thead><tr><th>Sample ID</th><th>Violation Codes</th></tr></thead><tbody>"
+        for v in report.safety_violations:
+            codes_str = ", ".join(
+                f"<span class='badge-code'>{c}</span>" for c in v.get("codes", [])
+            )
+            violations_html += f"<tr><td><code>{v.get('sample_id', 'unknown')}</code></td><td>{codes_str}</td></tr>"
+        violations_html += "</tbody></table>"
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>medeval Report - {report.model_name}</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1E293B; background: #F8FAFC; margin: 0; padding: 40px 20px; }}
+        .container {{ max-width: 800px; margin: 0 auto; background: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 32px; border: 1px solid #E2E8F0; }}
+        .header {{ border-bottom: 2px solid #F1F5F9; padding-bottom: 20px; margin-bottom: 24px; }}
+        h1 {{ margin: 0 0 10px 0; color: #0F172A; font-size: 24px; }}
+        .status-badge {{ display: inline-block; padding: 6px 12px; border-radius: 20px; color: white; font-weight: 600; font-size: 12px; background: {badge_color}; }}
+        .metadata-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 20px 0; background: #F8FAFC; padding: 16px; border-radius: 8px; font-size: 14px; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
+        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }}
+        th {{ background: #F8FAFC; font-weight: 600; color: #475569; }}
+        code {{ background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #0F172A; }}
+        .badge-code {{ background: #FEE2E2; color: #991B1B; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 4px; display: inline-block; margin-bottom: 4px; }}
+        .footer {{ margin-top: 40px; text-align: center; font-size: 12px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="status-badge">{badge_text}</span>
+            <h1 style="margin-top: 12px;">Clinical LLM Evaluation Report</h1>
+            <p style="margin: 0; color: #64748B;">Model: <strong>{report.model_name}</strong></p>
+        </div>
+
+        <div class="metadata-grid">
+            <div><strong>Framework Version:</strong> <code>medeval v{report.framework_version}</code></div>
+            <div><strong>Total Samples:</strong> <code>{report.total_samples}</code></div>
+        </div>
+
+        <h2>📊 Aggregate Metrics</h2>
+        <table>
+            <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+
+        <h2 style="margin-top: 32px;">🚨 Clinical Safety Violations</h2>
+        {violations_html}
+
+        <div class="footer">
+            Generated automatically by <a href="https://github.com/TeslaInch/medeval-framework" style="color: #3B82F6; text-decoration: none;">medeval-framework</a>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+    with output.open("w", encoding="utf-8") as fh:
+        fh.write(html_content)
+
+    logger.info("EvaluationReport exported to HTML '%s'.", output)
+    return output
