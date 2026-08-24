@@ -27,7 +27,7 @@ from .report import ReportGenerator, export_report_to_json
 from .runner import BenchmarkRunner, default_prompt_formatter
 from .structures import EvaluationReport, MedicalEvalSample
 
-__version__ = "0.1.0"
+__version__ = "0.1.5"
 
 __all__ = [
     # Data contracts

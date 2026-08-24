@@ -44,6 +44,16 @@ class TestCLIConnectorResolution:
         assert isinstance(conn2, OpenAIConnector)
         assert conn2.model_name == "gpt-3.5-turbo"
 
+        conn3 = resolve_model_connector("agentrouter:claude-3-5-sonnet", device="cpu")
+        assert isinstance(conn3, OpenAIConnector)
+        assert conn3.model_name == "claude-3-5-sonnet"
+
+        conn4 = resolve_model_connector(
+            "openrouter:meta-llama/llama-3.1-70b-instruct", device="cpu"
+        )
+        assert isinstance(conn4, OpenAIConnector)
+        assert conn4.model_name == "meta-llama/llama-3.1-70b-instruct"
+
     def test_resolves_huggingface_connector_default(self) -> None:
         """Any other model name must default to HuggingFaceConnector."""
         conn = resolve_model_connector("meta-llama/Llama-2-7b-chat-hf", device="cuda:0")

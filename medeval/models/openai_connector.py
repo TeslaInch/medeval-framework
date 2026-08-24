@@ -20,32 +20,33 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIConnector(BaseModelConnector):
-    """Connector for the OpenAI ChatCompletion API.
+    """Connector for the OpenAI ChatCompletion API and OpenAI-compatible routers (e.g. AgentRouter, OpenRouter).
 
     Loads the ``openai`` library and client lazily on first invocation.
 
     Args:
-        model_name: The OpenAI model version string (e.g., 'gpt-4o', 'gpt-3.5-turbo').
-        api_key: The OpenAI API key. If not provided, the ``OPENAI_API_KEY``
-            environment variable is used.
-        client_kwargs: Additional configuration parameters passed to the
-            ``openai.OpenAI`` constructor.
+        model_name: The target model version string (e.g., 'gpt-4o', 'claude-3-5-sonnet', 'llama-3.1-70b').
+        api_key: The API key. If not provided, checks ``OPENAI_API_KEY``, ``AGENTROUTER_API_KEY``, or ``OPENROUTER_API_KEY``.
+        base_url: Custom API base URL (e.g., 'https://agentrouter.ai/v1' or 'https://openrouter.ai/api/v1').
+        client_kwargs: Additional configuration parameters passed to the ``openai.OpenAI`` constructor.
     """
 
     def __init__(
         self,
         model_name: str,
         api_key: str | None = None,
+        base_url: str | None = None,
         client_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialise client credentials and target model configuration."""
         super().__init__(model_name=model_name)
         self._api_key = api_key
+        self._base_url = base_url
         self._client_kwargs = client_kwargs or {}
         self._client: Any = None
 
     def _lazy_init(self) -> None:
-        """Lazily imports and instantiates the OpenAI client."""
+        """Lazily imports and instantiates the OpenAI-compatible client."""
         if self._client is not None:
             return
 
@@ -57,14 +58,32 @@ class OpenAIConnector(BaseModelConnector):
                 "Install it with: pip install openai"
             ) from exc
 
-        api_key = self._api_key or os.environ.get("OPENAI_API_KEY")
+        api_key = (
+            self._api_key
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("AGENTROUTER_API_KEY")
+            or os.environ.get("OPENROUTER_API_KEY")
+        )
+        base_url = (
+            self._base_url
+            or os.environ.get("OPENAI_BASE_URL")
+            or os.environ.get("AGENTROUTER_BASE_URL")
+            or os.environ.get("OPENROUTER_BASE_URL")
+        )
+
         if not api_key:
             logger.warning(
-                "No API key provided or found in environment (OPENAI_API_KEY). "
-                "API calls will fail unless an alternative client setup is configured."
+                "No API key provided or found in environment (OPENAI_API_KEY / AGENTROUTER_API_KEY / OPENROUTER_API_KEY). "
+                "API calls will fail unless configured."
             )
 
-        self._client = openai.OpenAI(api_key=api_key, **self._client_kwargs)
+        kwargs = dict(self._client_kwargs)
+        if api_key:
+            kwargs["api_key"] = api_key
+        if base_url:
+            kwargs["base_url"] = base_url
+
+        self._client = openai.OpenAI(**kwargs)
 
     def generate(self, prompt: str) -> str:
         """Query the ChatCompletion API for a textual prediction.
@@ -97,26 +116,31 @@ class OpenAIConnector(BaseModelConnector):
         self._lazy_init()
         assert self._client is not None
 
-        # Request completions with logprobs enabled
-        response = self._client.chat.completions.create(
-            model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            logprobs=True,
-            top_logprobs=5,
-        )
+        try:
+            # Request completions with logprobs enabled
+            response = self._client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                logprobs=True,
+                top_logprobs=5,
+            )
 
-        choice = response.choices[0]
-        if not choice.logprobs or not choice.logprobs.content:
-            logger.warning("No logprobs returned by OpenAI API for model %s.", self.model_name)
+            choice = response.choices[0]
+            if not choice.logprobs or not choice.logprobs.content:
+                logger.warning("No logprobs returned by API for model %s.", self.model_name)
+                return []
+
+            probabilities: list[float] = []
+            # Extract linear probabilities from the log probabilities of generated tokens
+            for token_logprob in choice.logprobs.content:
+                logprob = token_logprob.logprob
+                # Convert logprob (natural log) to linear probability
+                linear_prob = math.exp(logprob)
+                probabilities.append(linear_prob)
+
+            return probabilities
+
+        except Exception as exc:
+            logger.warning("Logprobs generation failed for model %s: %s", self.model_name, exc)
             return []
-
-        probabilities: list[float] = []
-        # Extract linear probabilities from the log probabilities of generated tokens
-        for token_logprob in choice.logprobs.content:
-            logprob = token_logprob.logprob
-            # Convert logprob (natural log) to linear probability
-            linear_prob = math.exp(logprob)
-            probabilities.append(linear_prob)
-
-        return probabilities

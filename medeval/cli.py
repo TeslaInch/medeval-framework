@@ -14,6 +14,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
+from . import __version__
 from .accuracy import BaseScorer, ExactMatchScorer, SemanticSimilarityScorer
 from .benchmark import BenchmarkLoader
 from .hallucination import NLIHallucinationDetector
@@ -52,11 +53,26 @@ def resolve_model_connector(
         An instance of BaseModelConnector.
     """
     clean_name = model_name.strip()
+    api_prefixes = (
+        "gpt-",
+        "openai:",
+        "agentrouter:",
+        "openrouter:",
+        "router:",
+        "claude-",
+        "anthropic:",
+        "deepseek-",
+        "gemini-",
+    )
     if clean_name.startswith("mock-"):
         logger.info("CLI: Instantiating MockConnector for model '%s'", clean_name)
         return MockConnector(model_name=clean_name)
-    elif clean_name.startswith("gpt-") or clean_name.startswith("openai:"):
-        actual_name = clean_name.replace("openai:", "")
+    elif any(clean_name.startswith(p) for p in api_prefixes):
+        actual_name = clean_name
+        for p in ("openai:", "agentrouter:", "openrouter:", "router:", "anthropic:"):
+            if actual_name.startswith(p):
+                actual_name = actual_name.replace(p, "")
+                break
         logger.info("CLI: Instantiating OpenAIConnector for model '%s'", actual_name)
         return OpenAIConnector(model_name=actual_name)
     else:
@@ -278,8 +294,14 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--framework-version",
-        default="0.1.0",
-        help="Version of medeval framework. Default '0.1.0'.",
+        default=__version__,
+        help=f"Version of medeval framework. Default '{__version__}'.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"medeval {__version__}",
+        help="Show framework version number and exit.",
     )
     parser.add_argument(
         "-v",

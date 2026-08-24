@@ -101,16 +101,18 @@ class BenchmarkRunner:
         scorers: list[BaseScorer] | None = None,
         hallucination_detector: NLIHallucinationDetector | None = None,
         safety_checker: SickleCellSafetyChecker | None = None,
-        framework_version: str = "0.1.0",
+        framework_version: str | None = None,
         prompt_formatter: callable | None = None,  # type: ignore[valid-type]
         ignore_errors: bool = False,
     ) -> None:
         """Initialise runner configuration."""
+        from . import __version__
+
         self._model = model
         self._scorers = scorers if scorers is not None else [ExactMatchScorer()]
         self._hallucination_detector = hallucination_detector
         self._safety_checker = safety_checker
-        self._framework_version = framework_version
+        self._framework_version = framework_version or __version__
         self._prompt_formatter = prompt_formatter or default_prompt_formatter
         self._ignore_errors = ignore_errors
 

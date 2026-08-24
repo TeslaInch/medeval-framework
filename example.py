@@ -103,7 +103,6 @@ def main() -> None:
         model=model,
         scorers=scorers,
         safety_checker=safety_suite,
-        framework_version="0.1.0",
         ignore_errors=False,
     )
 
@@ -120,7 +119,6 @@ def main() -> None:
 
     generator = ReportGenerator(
         model_name=model.model_name,
-        framework_version="0.1.0",
         samples=evaluated_samples,
     )
     report = generator.generate()
