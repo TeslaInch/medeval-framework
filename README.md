@@ -132,10 +132,7 @@ loader = BenchmarkLoader(split="test", max_samples=20, topic="cardiac")
 samples = loader.load_medqa()
 
 # 2. Instantiate Model Connector (API Router or HuggingFace model)
-model = OpenAIConnector(
-    model_name="claude-3-5-sonnet",
-    base_url="https://agentrouter.ai/v1"
-)
+model = OpenAIConnector(model_name="claude-3-5-sonnet", base_url="https://agentrouter.ai/v1")
 
 # 3. Configure Safety Checker & Execute Benchmark
 runner = BenchmarkRunner(model=model, safety_checker=SickleCellSafetyChecker(), ignore_errors=True)
@@ -153,14 +150,10 @@ export_report_to_html(report, "cardiology_report.html")
 Compare base models, fine-tuned adapters, and SOTA models in Python:
 
 ```python
-from medeval.comparison import load_reports_from_files, export_comparison_to_markdown
+from medeval.comparison import export_comparison_to_markdown, load_reports_from_files
 
 # Load evaluation reports
-reports = load_reports_from_files([
-    "base_model_report.json",
-    "sickle_cell_adapter_report.json",
-    "sota_claude_report.json"
-])
+reports = load_reports_from_files(["base_model_report.json", "sickle_cell_adapter_report.json", "sota_claude_report.json"])
 
 # Export side-by-side comparative Markdown matrix
 export_comparison_to_markdown(reports, "model_comparison_matrix.md")
