@@ -85,13 +85,15 @@ class BenchmarkLoader:
         split: str = "test",
         max_samples: int | None = None,
         cache_dir: str | None = None,
+        topic: str | None = None,
     ) -> None:
-        """Initialise the loader with split, sample cap, and cache configuration.
+        """Initialise the loader with split, sample cap, cache, and optional topic filter.
 
         Args:
             split: Dataset split to load.
             max_samples: Maximum number of samples to return. ``None`` = no cap.
             cache_dir: HuggingFace datasets cache directory override.
+            topic: Keyword filter string (e.g. ``"sickle"`` or ``"cardiac"``).
 
         Raises:
             ValueError: If ``max_samples`` is provided but is not a positive integer.
@@ -102,6 +104,22 @@ class BenchmarkLoader:
         self._split: str = split
         self._max_samples: int | None = max_samples
         self._cache_dir: str | None = cache_dir
+        self._topic: str | None = topic.strip().lower() if topic else None
+
+    def _filter_by_topic(self, samples: list[MedicalEvalSample]) -> list[MedicalEvalSample]:
+        """Filter samples matching the configured topic keyword in question or ground_truth."""
+        if not self._topic:
+            return samples
+
+        filtered = [
+            s
+            for s in samples
+            if self._topic in s.question.lower() or self._topic in s.ground_truth.lower()
+        ]
+        logger.info(
+            "Topic filter '%s': kept %d / %d samples.", self._topic, len(filtered), len(samples)
+        )
+        return filtered
 
     def _load_hf_dataset(self, dataset_name: str, config: str | None = None) -> Any:
         """Load a HuggingFace dataset, raising ``DatasetLoadError`` on failure.
@@ -217,7 +235,7 @@ class BenchmarkLoader:
             samples.append(sample)
 
         logger.info("Loaded %d MedQA samples from split='%s'.", len(samples), self._split)
-        return samples
+        return self._filter_by_topic(samples)
 
     # ------------------------------------------------------------------
     # PubMedQA
@@ -277,7 +295,7 @@ class BenchmarkLoader:
             samples.append(sample)
 
         logger.info("Loaded %d PubMedQA samples from split='%s'.", len(samples), self._split)
-        return samples
+        return self._filter_by_topic(samples)
 
     # ------------------------------------------------------------------
     # MedMCQA
@@ -328,7 +346,7 @@ class BenchmarkLoader:
             samples.append(sample)
 
         logger.info("Loaded %d MedMCQA samples from split='%s'.", len(samples), self._split)
-        return samples
+        return self._filter_by_topic(samples)
 
     # ------------------------------------------------------------------
     # MMLU Medical Sub-subjects
@@ -385,4 +403,4 @@ class BenchmarkLoader:
             samples = samples[: self._max_samples]
 
         logger.info("Loaded %d MMLU-Medical samples from split='%s'.", len(samples), self._split)
-        return samples
+        return self._filter_by_topic(samples)

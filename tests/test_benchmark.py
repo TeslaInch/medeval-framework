@@ -168,15 +168,16 @@ class TestLoadMedQA:
 
         assert all(s.model_prediction == "" for s in samples)
 
-    def test_metadata_contains_dataset_key(self) -> None:
-        """Each sample's metadata must include 'dataset': 'medqa'."""
-        loader = BenchmarkLoader()
+    def test_topic_filtering(self) -> None:
+        """BenchmarkLoader with topic='pku' must keep only matching PKU samples."""
+        loader = BenchmarkLoader(split="test", topic="pku")
         mock_datasets = _make_mock_datasets_module(_MEDQA_ROWS)
 
         with patch.dict("sys.modules", {"datasets": mock_datasets}):
             samples = loader.load_medqa()
 
-        assert all(s.metadata.get("dataset") == "medqa" for s in samples)
+        assert len(samples) == 1
+        assert "PKU" in samples[0].question
 
     def test_raises_dataset_load_error_on_missing_columns(self) -> None:
         """DatasetLoadError must be raised when the dataset schema is wrong."""

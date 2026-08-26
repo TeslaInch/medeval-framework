@@ -136,7 +136,9 @@ def run_evaluation(args: argparse.Namespace) -> int:
         )
 
         # 3. Load dataset
-        loader = BenchmarkLoader(split=args.split, max_samples=args.limit)
+        loader = BenchmarkLoader(
+            split=args.split, max_samples=args.limit, topic=getattr(args, "topic", None)
+        )
         if args.dataset == "medqa":
             samples = loader.load_medqa()
         elif args.dataset == "pubmedqa":
@@ -256,6 +258,11 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Max number of samples to process. Defaults to running all samples.",
+    )
+    parser.add_argument(
+        "--topic",
+        default=None,
+        help="Filter dataset by topic keyword (e.g. 'sickle' or 'cardiac').",
     )
 
     # Safety metrics

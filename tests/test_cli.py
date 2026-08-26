@@ -181,7 +181,7 @@ class TestCLIEvaluationExecution:
 
         # 4. Verify interactions
         assert exit_code == 0
-        mock_loader_cls.assert_called_once_with(split="test", max_samples=5)
+        mock_loader_cls.assert_called_once_with(split="test", max_samples=5, topic=None)
         mock_loader.load_medqa.assert_called_once()
 
         mock_runner_cls.assert_called_once()
