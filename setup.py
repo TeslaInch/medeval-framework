@@ -23,7 +23,7 @@ except FileNotFoundError:
 
 setup(
     name="medeval-framework",
-    version="0.1.7",
+    version="0.1.8",
     author="medeval contributors",
     description=(
         "An open-source Python framework for rigorously benchmarking medical LLMs "

@@ -31,7 +31,8 @@ class AnthropicConnector(BaseModelConnector):
 
     Args:
         model_name: The Anthropic model identifier (e.g., 'claude-3-5-sonnet-20241022').
-        api_key: The Anthropic API key. If not provided, checks ``ANTHROPIC_API_KEY``.
+        api_key: The Anthropic API key. If not provided, checks ``ANTHROPIC_API_KEY``, ``AGENTROUTER_API_KEY``, etc.
+        base_url: Optional API base URL override.
         max_tokens: Maximum tokens to generate per response. Defaults to 1024.
         client_kwargs: Additional arguments passed to ``anthropic.Anthropic()``.
     """
@@ -40,12 +41,14 @@ class AnthropicConnector(BaseModelConnector):
         self,
         model_name: str,
         api_key: str | None = None,
+        base_url: str | None = None,
         max_tokens: int = 1024,
         client_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialise Anthropic API credentials and target model configuration."""
         super().__init__(model_name=model_name)
         self._api_key = api_key
+        self._base_url = base_url
         self._max_tokens = max_tokens
         self._client_kwargs = client_kwargs or {}
         self._client: Any = None
@@ -63,16 +66,24 @@ class AnthropicConnector(BaseModelConnector):
                 "Install it with: pip install anthropic"
             ) from exc
 
-        api_key = self._api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            logger.warning(
-                "No Anthropic API key provided or found in environment (ANTHROPIC_API_KEY). "
-                "API calls will fail unless configured."
-            )
+        api_key = (
+            self._api_key
+            or os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("AGENTROUTER_API_KEY")
+            or os.environ.get("OPENROUTER_API_KEY")
+        )
+        base_url = (
+            self._base_url
+            or os.environ.get("ANTHROPIC_BASE_URL")
+            or os.environ.get("AGENTROUTER_ANTHROPIC_BASE_URL")
+            or os.environ.get("AGENTROUTER_BASE_URL")
+        )
 
         kwargs = dict(self._client_kwargs)
-        if api_key:
+        if api_key and "api_key" not in kwargs and "auth_token" not in kwargs:
             kwargs["api_key"] = api_key
+        if base_url and "base_url" not in kwargs:
+            kwargs["base_url"] = base_url
 
         self._client = anthropic.Anthropic(**kwargs)
 
@@ -92,12 +103,18 @@ class AnthropicConnector(BaseModelConnector):
             model=self.model_name,
             max_tokens=self._max_tokens,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
         )
-        # Extract text blocks from response
-        parts: list[str] = [
-            block.text for block in response.content if getattr(block, "type", "") == "text"
-        ]
+
+        if isinstance(response, str):
+            return response.strip()
+
+        parts: list[str] = []
+        if hasattr(response, "content") and response.content:
+            for block in response.content:
+                if isinstance(block, str):
+                    parts.append(block)
+                elif hasattr(block, "text"):
+                    parts.append(str(block.text))
         return "".join(parts).strip()
 
     def generate_probabilities(self, prompt: str) -> list[float]:  # noqa: ARG002

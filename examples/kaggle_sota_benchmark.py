@@ -22,6 +22,7 @@ except ImportError:
 
 from medeval.benchmark import BenchmarkLoader
 from medeval.comparison import export_comparison_to_markdown
+from medeval.models.anthropic_connector import AnthropicConnector
 from medeval.models.openai_connector import OpenAIConnector
 from medeval.report import export_report_to_html, export_report_to_json, export_report_to_markdown
 from medeval.runner import BenchmarkRunner
@@ -51,9 +52,9 @@ base_url = os.environ.get("AGENTROUTER_BASE_URL", "https://agentrouter.ai/v1")
 
 # 3. Target SOTA Models to Evaluate
 MODELS_TO_TEST = [
-    {"name": "claude-3-5-sonnet", "label": "Claude 3.5 Sonnet"},
-    {"name": "meta-llama/llama-3.1-70b-instruct", "label": "Llama 3.1 70B"},
-    {"name": "gpt-4o", "label": "GPT-4o"},
+    {"name": "claude-3-5-sonnet", "label": "Claude 3.5 Sonnet", "type": "anthropic"},
+    {"name": "meta-llama/llama-3.1-70b-instruct", "label": "Llama 3.1 70B", "type": "openai"},
+    {"name": "gpt-4o", "label": "GPT-4o", "type": "openai"},
 ]
 
 # 4. Load Benchmark Dataset (MedQA test split, 20 samples smoke test)
@@ -70,16 +71,24 @@ safety_checker = SickleCellSafetyChecker()
 for target in MODELS_TO_TEST:
     model_id = target["name"]
     label = target["label"]
+    model_type = target.get("type", "openai")
     print("\n==========================================")
     print(f" Evaluating SOTA Model: {label} ({model_id})")
     print("==========================================")
 
     try:
-        connector = OpenAIConnector(
-            model_name=model_id,
-            api_key=api_key,
-            base_url=base_url,
-        )
+        if model_type == "anthropic":
+            connector = AnthropicConnector(
+                model_name=model_id,
+                api_key=api_key,
+                base_url=os.environ.get("AGENTROUTER_ANTHROPIC_BASE_URL", base_url),
+            )
+        else:
+            connector = OpenAIConnector(
+                model_name=model_id,
+                api_key=api_key,
+                base_url=base_url,
+            )
 
         runner = BenchmarkRunner(
             model=connector,

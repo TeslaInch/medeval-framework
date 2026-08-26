@@ -102,7 +102,16 @@ class OpenAIConnector(BaseModelConnector):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
         )
-        return str(response.choices[0].message.content).strip()
+
+        if isinstance(response, str):
+            return response.strip()
+
+        if hasattr(response, "choices") and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, "message") and hasattr(choice.message, "content"):
+                return str(choice.message.content).strip()
+
+        return str(response).strip()
 
     def generate_probabilities(self, prompt: str) -> list[float]:
         """Request log-probabilities from the API and convert to linear probabilities.
