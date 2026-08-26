@@ -7,6 +7,7 @@ Exposes the base class, local Hugging Face, API-driven OpenAI, and unit-testing
 Mock connectors.
 """
 
+from .anthropic_connector import AnthropicConnector
 from .base import BaseModelConnector
 from .huggingface import HuggingFaceConnector
 from .mock import MockConnector
@@ -16,5 +17,6 @@ __all__ = [
     "BaseModelConnector",
     "HuggingFaceConnector",
     "OpenAIConnector",
+    "AnthropicConnector",
     "MockConnector",
 ]
