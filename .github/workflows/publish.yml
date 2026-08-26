@@ -7,13 +7,12 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   pypi-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # Mandatory for PyPI Trusted Publishing
 
     steps:
     - name: Check out repository
