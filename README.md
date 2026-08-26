@@ -153,7 +153,9 @@ Compare base models, fine-tuned adapters, and SOTA models in Python:
 from medeval.comparison import export_comparison_to_markdown, load_reports_from_files
 
 # Load evaluation reports
-reports = load_reports_from_files(["base_model_report.json", "sickle_cell_adapter_report.json", "sota_claude_report.json"])
+reports = load_reports_from_files(
+    ["base_model_report.json", "sickle_cell_adapter_report.json", "sota_claude_report.json"]
+)
 
 # Export side-by-side comparative Markdown matrix
 export_comparison_to_markdown(reports, "model_comparison_matrix.md")
