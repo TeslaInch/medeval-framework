@@ -23,7 +23,7 @@ except FileNotFoundError:
 
 setup(
     name="medeval-framework",
-    version="0.1.8",
+    version="0.1.9",
     author="medeval contributors",
     description=(
         "An open-source Python framework for rigorously benchmarking medical LLMs "
@@ -31,7 +31,7 @@ setup(
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-org/medeval-framework",
+    url="https://github.com/TeslaInch/medeval-framework",
     license="Apache License 2.0",
     # Automatically discover all sub-packages inside the ``medeval`` directory.
     packages=find_packages(exclude=["tests", "tests.*"]),

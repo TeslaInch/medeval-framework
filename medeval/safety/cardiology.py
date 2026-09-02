@@ -135,8 +135,15 @@ class CardiologySafetyChecker(BaseSafetyChecker):
 
         found: list[SafetyViolation] = []
         for rule in self._RULES:
-            match = rule.pattern.search(text)
-            if match is not None:
+            for match in rule.pattern.finditer(text):
+                if self.is_negated(text, match.start(), match.end(), window=40):
+                    logger.debug(
+                        "Suppressed negated safety violation: code=%s, matched=%r",
+                        rule.violation_code,
+                        match.group(0),
+                    )
+                    continue
+
                 found.append(
                     SafetyViolation(
                         code=rule.violation_code,
@@ -150,4 +157,5 @@ class CardiologySafetyChecker(BaseSafetyChecker):
                     rule.violation_code,
                     match.group(0),
                 )
+                break
         return found

@@ -26,7 +26,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -121,12 +121,12 @@ class ReportGenerator:
         if not scores:
             return None
         return sum(scores) / len(scores)
-
-    def _aggregate_hallucination_rate(self) -> float | None:
-        """Compute fraction of samples flagged as hallucinations.
+    def _aggregate_hallucination_rate(self) -> tuple[float | None, tuple[float, float] | None]:
+        """Compute fraction of samples flagged as hallucinations and its CI.
 
         Returns:
-            Hallucination rate in [0, 1], or ``None`` if no samples carry
+            A tuple of (rate, ci), where rate is in [0, 1] and ci is a tuple of
+            (lower, upper) bounds. Returns (None, None) if no samples carry
             the metric.
         """
         flags: list[bool] = [
@@ -135,8 +135,53 @@ class ReportGenerator:
             if _KEY_HALLUCINATION in s.metadata
         ]
         if not flags:
+            return None, None
+
+        rate = sum(flags) / len(flags)
+        ci = self._calculate_binary_ci(flags)
+        return rate, ci
+
+    def _calculate_binary_ci(self, values: Sequence[bool | int]) -> tuple[float, float] | None:
+        """Calculate 95% CI for binary proportions using Wald's formula or Bootstrap."""
+        if not values:
             return None
-        return sum(flags) / len(flags)
+
+        n = len(values)
+        if n == 0:
+            return None
+
+        p = sum(values) / n
+
+        # Check normal approximation conditions (magic number = 5)
+        if n >= 100 and (n * p >= 5) and (n * (1 - p) >= 5):
+            import math
+            z = 1.96  # For 95% confidence
+            se = math.sqrt(p * (1 - p) / n)
+            return max(0.0, p - z * se), min(1.0, p + z * se)
+
+        # Fallback to bootstrap
+        return self._calculate_continuous_ci(values)
+
+    def _calculate_continuous_ci(self, values: Sequence[float | int | bool]) -> tuple[float, float] | None:
+        """Calculate 95% CI using Bootstrap resampling."""
+        if not values or len(values) < 2:
+            return None
+
+        import numpy as np
+        arr = np.array(values, dtype=float)
+        n = len(arr)
+
+        # Resample 10,000 times
+        n_iterations = 10000
+        # Use a vectorized bootstrap for speed
+        # random.choice is fast, but np.random.choice inside a loop is also fine
+        # For small n, this is virtually instantaneous
+        boot_means = np.empty(n_iterations, dtype=float)
+        for i in range(n_iterations):
+            sample = np.random.choice(arr, size=n, replace=True)
+            boot_means[i] = np.mean(sample)
+
+        return float(np.percentile(boot_means, 2.5)), float(np.percentile(boot_means, 97.5))
 
     def _aggregate_safety_violations(self) -> list[dict[str, Any]]:
         """Collect all safety violations across all samples.
@@ -203,10 +248,42 @@ class ReportGenerator:
         bert_score = self._aggregate_bert_score()
         if bert_score is not None:
             metrics[_KEY_BERT_SCORE.replace("_f1", "_mean_f1")] = bert_score
+            # Extract list for CI
+            bert_values = [
+                float(s.metadata[_KEY_BERT_SCORE])
+                for s in self._samples
+                if _KEY_BERT_SCORE in s.metadata
+            ]
+            ci = self._calculate_continuous_ci(bert_values)
+            if ci:
+                metrics["bert_score_mean_f1_ci_lower"] = ci[0]
+                metrics["bert_score_mean_f1_ci_upper"] = ci[1]
 
-        hallucination_rate = self._aggregate_hallucination_rate()
-        if hallucination_rate is not None:
-            metrics["hallucination_rate"] = hallucination_rate
+        halluc_result = self._aggregate_hallucination_rate()
+        if halluc_result[0] is not None:
+            metrics["hallucination_rate"] = halluc_result[0]
+            if halluc_result[1]:
+                metrics["hallucination_rate_ci_lower"] = halluc_result[1][0]
+                metrics["hallucination_rate_ci_upper"] = halluc_result[1][1]
+
+            hallucination_count = sum(
+                1 for s in self._samples if s.metadata.get(_KEY_HALLUCINATION) is True
+            )
+            metrics["hallucination_count"] = float(hallucination_count)
+
+        # Accuracy
+        y_true_vals = [
+            int(s.metadata["y_true"])
+            for s in self._samples
+            if "y_true" in s.metadata
+        ]
+        if y_true_vals:
+            acc = sum(y_true_vals) / len(y_true_vals)
+            metrics["accuracy"] = acc
+            ci = self._calculate_binary_ci(y_true_vals)
+            if ci:
+                metrics["accuracy_ci_lower"] = ci[0]
+                metrics["accuracy_ci_upper"] = ci[1]
 
         metrics.update(self._aggregate_calibration())
 

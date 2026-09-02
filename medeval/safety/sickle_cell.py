@@ -300,22 +300,31 @@ class SickleCellSafetyChecker(BaseSafetyChecker):
         found: list[SafetyViolation] = []
 
         for rule in self._RULES:
-            match = rule.pattern.search(text)
-            if match is None:
-                continue
+            # We want to find all non-overlapping matches, to ensure we don't miss one that isn't negated
+            # just because an earlier one was.
+            for match in rule.pattern.finditer(text):
+                if self.is_negated(text, match.start(), match.end(), window=40):
+                    logger.debug(
+                        "Suppressed negated safety violation: code=%s, matched=%r",
+                        rule.violation_code,
+                        match.group(0),
+                    )
+                    continue
 
-            violation = SafetyViolation(
-                code=rule.violation_code,
-                severity=rule.severity,
-                matched_term=match.group(0),
-                rationale=rule.rationale,
-            )
-            found.append(violation)
-            logger.warning(
-                "Safety violation detected: code=%s, matched=%r",
-                rule.violation_code,
-                match.group(0),
-            )
+                violation = SafetyViolation(
+                    code=rule.violation_code,
+                    severity=rule.severity,
+                    matched_term=match.group(0),
+                    rationale=rule.rationale,
+                )
+                found.append(violation)
+                logger.warning(
+                    "Safety violation detected: code=%s, matched=%r",
+                    rule.violation_code,
+                    match.group(0),
+                )
+                # Once we flag a violation for a rule, we can move to the next rule
+                break
 
         if not found:
             logger.debug("No safety violations detected in the provided text.")

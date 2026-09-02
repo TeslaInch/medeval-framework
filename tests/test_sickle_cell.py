@@ -73,6 +73,17 @@ class TestColdVasoconstriction:
         violations = checker.check_contraindications_detailed("ice packs")
         assert violations[0].severity == "CRITICAL"
 
+    def test_negation_suppresses_violation(self, checker: SickleCellSafetyChecker) -> None:
+        """When cold therapy is explicitly negated or advised against, do not flag."""
+        codes = checker.check_contraindications("Avoid ice packs for pain.")
+        assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" not in codes
+
+        codes = checker.check_contraindications("Do not apply cold compresses to the joints.")
+        assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" not in codes
+
+        codes = checker.check_contraindications("Cold therapy is contraindicated in this patient.")
+        assert "CRITICAL_SAFETY_FAIL:COLD_VASOCONSTRICTION" not in codes
+
 
 # ---------------------------------------------------------------------------
 # CRITICAL: Vasoconstrictor tests

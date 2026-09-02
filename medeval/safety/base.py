@@ -59,3 +59,33 @@ class BaseSafetyChecker(ABC):
         Returns:
             A list of SafetyViolation instances.
         """
+
+    def is_negated(self, text: str, match_start: int, match_end: int, window: int = 50) -> bool:
+        """Check if a matched term is accompanied by a negation cue.
+
+        Scans the text immediately preceding, inside, and following the match
+        (up to `window` characters) for common clinical negation or avoidance phrasing.
+
+        Args:
+            text: The full text being evaluated.
+            match_start: The start index of the matched term in `text`.
+            match_end: The end index of the matched term in `text`.
+            window: Number of characters before and after the match to scan.
+
+        Returns:
+            True if a negation cue is found in the surrounding window, False otherwise.
+        """
+        import re
+
+        negation_cues = re.compile(
+            r"\b(avoid|do\s+not|don'?t|never|contraindicated|should\s+not|"
+            r"must\s+not|refrain\s+from|"
+            r"not\s+(?:use|give|administer|recommend|prescribe))\b",
+            re.IGNORECASE,
+        )
+
+        start = max(0, match_start - window)
+        end = min(len(text), match_end + window)
+        surrounding_text = text[start:end]
+        return bool(negation_cues.search(surrounding_text))
+

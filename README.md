@@ -33,8 +33,13 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 - **Dual Clinical Safety Audit**:
   - *Deterministic Checker*: Pure-Python regex engine detecting explicit contraindications in **Sickle Cell Disease** and **Cardiology**.
   - *Semantic Safety Net*: Cross-encoder NLI hazard verification (`SemanticSafetyChecker`) flagging context-dependent medical risks.
-- **NLI Hallucination Detection**: Cross-encoder Natural Language Inference (`NLIHallucinationDetector`) evaluating prediction hypotheses against ground-truth clinical facts.
-- **Advanced Calibration Suite**: Vectorized Expected Calibration Error (**ECE**), Maximum Calibration Error (**MCE**), and **Brier Score**.
+- **Context-Injected Hallucination Detection**: Cross-encoder Natural Language Inference (`NLIHallucinationDetector`) evaluating prediction hypotheses against ground-truth clinical facts with full context injection to minimize false positives.
+- **Advanced Calibration & Metrics Suite**: 
+  - Vectorized Expected Calibration Error (**ECE**), Maximum Calibration Error (**MCE**), and **Brier Score**.
+  - **Generative Sequence Mean**: Calculates robust confidence (`y_prob`) by averaging generated token probabilities, natively supporting OpenAI logprobs.
+  - **Dynamic Bootstrap Resampling**: Automatically calculates rigorous 95% Confidence Intervals for Accuracy and Hallucination Rates.
+- **Incremental Checkpointing**: Instantly saves results to a `.jsonl` stream, allowing you to resume interrupted evaluations flawlessly without re-running API calls.
+- **Robust Answer Extraction**: High-fidelity regex strategies that flawlessly strip markdown and extract multi-choice keys from verbose clinical reasoning.
 - **Multi-Format Export & Comparison**: Export structured reports to **JSON**, **Markdown** tables (`.md`), or interactive **HTML** dashboards (`.html`), with built-in side-by-side model comparison tools (`compare_reports`).
 
 ---
@@ -125,6 +130,8 @@ from medeval.benchmark import BenchmarkLoader
 from medeval.models.openai_connector import OpenAIConnector
 from medeval.runner import BenchmarkRunner
 from medeval.safety import SickleCellSafetyChecker
+from medeval.hallucination import NLIHallucinationDetector
+from medeval.scorers import ExactMatchScorer, SemanticSimilarityScorer
 from medeval.report import export_report_to_html, export_report_to_markdown
 
 # 1. Load dataset with topic filtering (e.g. Cardiology questions)
@@ -134,11 +141,26 @@ samples = loader.load_medqa()
 # 2. Instantiate Model Connector (API Router or HuggingFace model)
 model = OpenAIConnector(model_name="claude-3-5-sonnet", base_url="https://agentrouter.ai/v1")
 
-# 3. Configure Safety Checker & Execute Benchmark
-runner = BenchmarkRunner(model=model, safety_checker=SickleCellSafetyChecker(), ignore_errors=True)
+# 3. Configure Metrics, Safety Checkers & Checkpointing
+scorers = [
+    ExactMatchScorer(),
+    SemanticSimilarityScorer(model_name="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract")
+]
+hallucination_detector = NLIHallucinationDetector(model_name="pritamdeka/PubMedBERT-MNLI-MedNLI")
+
+runner = BenchmarkRunner(
+    model=model,
+    scorers=scorers,
+    safety_checker=SickleCellSafetyChecker(),
+    hallucination_detector=hallucination_detector,
+    checkpoint_dir="./checkpoints", # Enables instant resume capability!
+    ignore_errors=True
+)
+
+# 4. Execute Benchmark
 report = runner.run(samples)
 
-# 4. Export report as styled Markdown or HTML dashboard
+# 5. Export report as styled Markdown or HTML dashboard
 export_report_to_markdown(report, "cardiology_report.md")
 export_report_to_html(report, "cardiology_report.html")
 ```

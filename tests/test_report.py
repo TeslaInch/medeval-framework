@@ -335,3 +335,44 @@ class TestExportersAndComparison:
         assert res.exists()
         text = out_path.read_text(encoding="utf-8")
         assert "Side-by-Side Metrics Matrix" in text
+
+class TestDynamicCIs:
+    """Verifies that bootstrap and wald's formula are applied correctly."""
+
+    def test_calculate_binary_ci_walds(self) -> None:
+        """For large n and p not near 0/1, Wald's formula should be used."""
+        # 100 samples, 50 ones and 50 zeros (p=0.5, n=100)
+        values = [True] * 50 + [False] * 50
+        dummy = [MedicalEvalSample("s", "q", "g", "m")]
+        generator = ReportGenerator("test", "0.1", dummy)
+
+        ci = generator._calculate_binary_ci(values)
+        assert ci is not None
+        # Wald's SE = sqrt(0.5*0.5/100) = sqrt(0.0025) = 0.05
+        # z = 1.96, z*SE = 0.098
+        # CI should be (0.402, 0.598)
+        assert round(ci[0], 3) == 0.402
+        assert round(ci[1], 3) == 0.598
+
+    def test_calculate_binary_ci_bootstrap_fallback(self) -> None:
+        """For large n but extreme p, it falls back to Bootstrap."""
+        # 100 samples, 99 ones and 1 zero. (n*(1-p) = 1 < 5)
+        values = [True] * 99 + [False] * 1
+        dummy = [MedicalEvalSample("s", "q", "g", "m")]
+        generator = ReportGenerator("test", "0.1", dummy)
+
+        ci = generator._calculate_binary_ci(values)
+        assert ci is not None
+        assert 0.90 <= ci[0] <= 1.0
+        assert 0.99 <= ci[1] <= 1.0
+
+    def test_calculate_binary_ci_small_n(self) -> None:
+        """For small n, it uses Bootstrap."""
+        values = [True] * 10 + [False] * 10
+        dummy = [MedicalEvalSample("s", "q", "g", "m")]
+        generator = ReportGenerator("test", "0.1", dummy)
+
+        ci = generator._calculate_binary_ci(values)
+        assert ci is not None
+        assert 0.2 <= ci[0] <= 0.4
+        assert 0.6 <= ci[1] <= 0.8

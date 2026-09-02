@@ -82,6 +82,8 @@ class OpenAIConnector(BaseModelConnector):
             kwargs["api_key"] = api_key
         if base_url:
             kwargs["base_url"] = base_url
+        if "default_headers" not in kwargs:
+            kwargs["default_headers"] = {"User-Agent": "Cline/3.0.0"}
 
         self._client = openai.OpenAI(**kwargs)
 

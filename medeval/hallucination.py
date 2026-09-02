@@ -96,7 +96,7 @@ class NLIHallucinationDetector:
 
     Args:
         model_name: HuggingFace model identifier. Defaults to
-            ``"cross-encoder/nli-deberta-v3-large"``, which achieves strong NLI
+            ``"pritamdeka/PubMedBERT-MNLI-MedNLI"``, which achieves strong NLI
             performance on clinical text.
         threshold: Decision threshold for hallucination classification.
             Higher values are more permissive (fewer false positives).
@@ -116,7 +116,7 @@ class NLIHallucinationDetector:
 
     def __init__(
         self,
-        model_name: str = "cross-encoder/nli-deberta-v3-large",
+        model_name: str = "pritamdeka/PubMedBERT-MNLI-MedNLI",
         threshold: float = 0.5,
         device: int = -1,
     ) -> None:

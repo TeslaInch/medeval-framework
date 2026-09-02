@@ -33,7 +33,7 @@ from .report import (
 from .runner import BenchmarkRunner, default_prompt_formatter
 from .structures import EvaluationReport, MedicalEvalSample
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 
 __all__ = [
     # Data contracts

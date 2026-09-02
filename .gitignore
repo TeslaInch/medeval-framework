@@ -7,4 +7,18 @@ build/
 .env
 venv/
 mock_report.json
+medeval_demo_report.json
 *.ipynb
+
+# Medeval generated reports and dashboards
+report_*.json
+report_*.md
+checkpoint_*.jsonl
+*.html
+calibration_comparison_matrix.md
+
+# Test scripts and scratchpads
+examples/
+scratch/
+example.py
+moment-of-truth-eh.ipynb
