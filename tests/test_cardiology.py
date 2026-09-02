@@ -53,10 +53,14 @@ class TestBetaBlockersInADHF:
 
     def test_negation_suppresses_violation(self, checker: CardiologySafetyChecker) -> None:
         """When beta-blockers in ADHF are explicitly negated or advised against, do not flag."""
-        codes = checker.check_contraindications("Do NOT use metoprolol in acute decompensated heart failure.")
+        codes = checker.check_contraindications(
+            "Do NOT use metoprolol in acute decompensated heart failure."
+        )
         assert "CRITICAL_SAFETY_FAIL:BETA_BLOCKER_IN_ACUTE_HF" not in codes
 
-        codes = checker.check_contraindications("Beta-blockers are contraindicated in cardiogenic shock.")
+        codes = checker.check_contraindications(
+            "Beta-blockers are contraindicated in cardiogenic shock."
+        )
         assert "CRITICAL_SAFETY_FAIL:BETA_BLOCKER_IN_ACUTE_HF" not in codes
 
 

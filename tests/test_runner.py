@@ -160,9 +160,12 @@ class TestBenchmarkRunnerE2E:
         # 1. Run first sample and crash
         connector = MockConnector(predictions=["Success", "Crash"])
         connector.generate = MagicMock(side_effect=["Success 1", RuntimeError("Simulated crash")])
-        runner1 = BenchmarkRunner(model=connector, hallucination_detector=False, checkpoint_path=str(checkpoint_file))
+        runner1 = BenchmarkRunner(
+            model=connector, hallucination_detector=False, checkpoint_path=str(checkpoint_file)
+        )
 
         import pytest
+
         with pytest.raises(RuntimeError, match="Simulated crash"):
             runner1.run(samples)
 
@@ -176,7 +179,9 @@ class TestBenchmarkRunnerE2E:
         # 2. Resume with new runner, skipping s1 and completing s2
         connector2 = MockConnector(predictions=["Success 2"])
         connector2.generate = MagicMock(return_value="Success 2")
-        runner2 = BenchmarkRunner(model=connector2, hallucination_detector=False, checkpoint_path=str(checkpoint_file))
+        runner2 = BenchmarkRunner(
+            model=connector2, hallucination_detector=False, checkpoint_path=str(checkpoint_file)
+        )
 
         report = runner2.run(samples)
 
@@ -203,7 +208,9 @@ class TestBenchmarkRunnerE2E:
     def test_runner_uses_answer_extraction_for_y_true(self) -> None:
         """Verifies that the runner extracts the answer before computing exact match y_true."""
         # 1. Provide a verbose prediction that would fail standard exact match
-        verbose_prediction = "Based on the clinical presentation, the best answer is A. Hydroxyurea."
+        verbose_prediction = (
+            "Based on the clinical presentation, the best answer is A. Hydroxyurea."
+        )
         connector = MockConnector(predictions=[verbose_prediction], probabilities=[[0.9]])
 
         # 2. Provide a sample with choices where ground truth is the choice value
@@ -250,9 +257,7 @@ class TestBenchmarkRunnerErrorHandling:
             MedicalEvalSample("s2", "Q2", "A2", ""),
         ]
 
-        runner = BenchmarkRunner(
-            model=connector, hallucination_detector=False, ignore_errors=True
-        )
+        runner = BenchmarkRunner(model=connector, hallucination_detector=False, ignore_errors=True)
         report = runner.run(samples)
 
         # Report should successfully contain only the evaluated sample
@@ -268,9 +273,7 @@ class TestBenchmarkRunnerErrorHandling:
             MedicalEvalSample("s1", "Q1", "A1", ""),
         ]
 
-        runner = BenchmarkRunner(
-            model=connector, hallucination_detector=False, ignore_errors=False
-        )
+        runner = BenchmarkRunner(model=connector, hallucination_detector=False, ignore_errors=False)
         with pytest.raises(RuntimeError, match="Inference Error"):
             runner.run(samples)
 
@@ -284,8 +287,6 @@ class TestBenchmarkRunnerErrorHandling:
             MedicalEvalSample("s2", "Q2", "A2", ""),
         ]
 
-        runner = BenchmarkRunner(
-            model=connector, hallucination_detector=False, ignore_errors=True
-        )
+        runner = BenchmarkRunner(model=connector, hallucination_detector=False, ignore_errors=True)
         with pytest.raises(ValueError, match="All samples failed to evaluate"):
             runner.run(samples)

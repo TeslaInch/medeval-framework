@@ -336,6 +336,7 @@ class TestExportersAndComparison:
         text = out_path.read_text(encoding="utf-8")
         assert "Side-by-Side Metrics Matrix" in text
 
+
 class TestDynamicCIs:
     """Verifies that bootstrap and wald's formula are applied correctly."""
 

@@ -118,7 +118,10 @@ class BenchmarkRunner:
 
         if hallucination_detector is True:
             from .hallucination import NLIHallucinationDetector
-            self._hallucination_detector: NLIHallucinationDetector | None = NLIHallucinationDetector()
+
+            self._hallucination_detector: NLIHallucinationDetector | None = (
+                NLIHallucinationDetector()
+            )
         elif hallucination_detector is False or hallucination_detector is None:
             self._hallucination_detector = None
         else:
@@ -264,6 +267,7 @@ class BenchmarkRunner:
         # Load checkpoint if it exists
         if self._checkpoint_path:
             import os
+
             if os.path.exists(self._checkpoint_path):
                 logger.info("Found checkpoint at %s, loading...", self._checkpoint_path)
                 try:
@@ -292,7 +296,9 @@ class BenchmarkRunner:
                         with open(self._checkpoint_path, "a", encoding="utf-8") as f:
                             f.write(json.dumps(asdict(res)) + "\n")
                     except Exception as exc:
-                        logger.warning("Failed to write to checkpoint %s: %s", self._checkpoint_path, exc)
+                        logger.warning(
+                            "Failed to write to checkpoint %s: %s", self._checkpoint_path, exc
+                        )
 
         if not evaluated_samples:
             raise ValueError("All samples failed to evaluate and ignore_errors was set to True.")

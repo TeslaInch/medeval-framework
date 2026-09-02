@@ -88,4 +88,3 @@ class BaseSafetyChecker(ABC):
         end = min(len(text), match_end + window)
         surrounding_text = text[start:end]
         return bool(negation_cues.search(surrounding_text))
-

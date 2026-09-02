@@ -121,6 +121,7 @@ class ReportGenerator:
         if not scores:
             return None
         return sum(scores) / len(scores)
+
     def _aggregate_hallucination_rate(self) -> tuple[float | None, tuple[float, float] | None]:
         """Compute fraction of samples flagged as hallucinations and its CI.
 
@@ -155,6 +156,7 @@ class ReportGenerator:
         # Check normal approximation conditions (magic number = 5)
         if n >= 100 and (n * p >= 5) and (n * (1 - p) >= 5):
             import math
+
             z = 1.96  # For 95% confidence
             se = math.sqrt(p * (1 - p) / n)
             return max(0.0, p - z * se), min(1.0, p + z * se)
@@ -162,12 +164,15 @@ class ReportGenerator:
         # Fallback to bootstrap
         return self._calculate_continuous_ci(values)
 
-    def _calculate_continuous_ci(self, values: Sequence[float | int | bool]) -> tuple[float, float] | None:
+    def _calculate_continuous_ci(
+        self, values: Sequence[float | int | bool]
+    ) -> tuple[float, float] | None:
         """Calculate 95% CI using Bootstrap resampling."""
         if not values or len(values) < 2:
             return None
 
         import numpy as np
+
         arr = np.array(values, dtype=float)
         n = len(arr)
 
@@ -272,11 +277,7 @@ class ReportGenerator:
             metrics["hallucination_count"] = float(hallucination_count)
 
         # Accuracy
-        y_true_vals = [
-            int(s.metadata["y_true"])
-            for s in self._samples
-            if "y_true" in s.metadata
-        ]
+        y_true_vals = [int(s.metadata["y_true"]) for s in self._samples if "y_true" in s.metadata]
         if y_true_vals:
             acc = sum(y_true_vals) / len(y_true_vals)
             metrics["accuracy"] = acc
