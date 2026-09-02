@@ -144,7 +144,7 @@ model = OpenAIConnector(model_name="claude-3-5-sonnet", base_url="https://agentr
 # 3. Configure Metrics, Safety Checkers & Checkpointing
 scorers = [
     ExactMatchScorer(),
-    SemanticSimilarityScorer(model_name="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract")
+    SemanticSimilarityScorer(model_name="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract"),
 ]
 hallucination_detector = NLIHallucinationDetector(model_name="pritamdeka/PubMedBERT-MNLI-MedNLI")
 
@@ -153,8 +153,8 @@ runner = BenchmarkRunner(
     scorers=scorers,
     safety_checker=SickleCellSafetyChecker(),
     hallucination_detector=hallucination_detector,
-    checkpoint_dir="./checkpoints", # Enables instant resume capability!
-    ignore_errors=True
+    checkpoint_dir="./checkpoints",  # Enables instant resume capability!
+    ignore_errors=True,
 )
 
 # 4. Execute Benchmark
