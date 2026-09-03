@@ -151,6 +151,7 @@ def extract_answer_choice(
     if choices:
         pred_lower = prediction_clean.lower()
         first_index = len(pred_lower)
+        best_length = 0
         best_key = None
         for key, value in choices.items():
             val_lower = value.lower().strip()
@@ -160,8 +161,10 @@ def extract_answer_choice(
                 match = re.search(pattern, pred_lower)
                 if match:
                     idx = match.start()
-                    if idx < first_index:
+                    # Prefer earlier match. If same start index, prefer longer match.
+                    if idx < first_index or (idx == first_index and len(val_lower) > best_length):
                         first_index = idx
+                        best_length = len(val_lower)
                         best_key = str(key)
         if best_key is not None:
             logger.debug("Answer extraction: value match → %r", best_key)
