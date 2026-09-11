@@ -16,7 +16,7 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 
@@ -221,8 +221,8 @@ def calculate_brier_score(
 
 
 def calculate_ace(
-    y_true: list[int] | np.ndarray,
-    y_prob: list[float] | np.ndarray,
+    y_true: list[int] | "np.ndarray[Any, Any]",
+    y_prob: list[float] | "np.ndarray[Any, Any]",
     n_bins: int = 10,
 ) -> float:
     """Compute the Adaptive Calibration Error (ACE) using equal-frequency bins.
@@ -284,8 +284,8 @@ def calculate_ace(
 
 
 def bootstrap_confidence_interval(
-    data: np.ndarray,
-    metric_fn: Callable[[np.ndarray], float],
+    data: "np.ndarray[Any, Any]",
+    metric_fn: Callable[["np.ndarray[Any, Any]"], float],
     n_resamples: int = 1000,
     ci_level: float = 0.95,
     seed: int = 42,
