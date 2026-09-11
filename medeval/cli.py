@@ -184,6 +184,7 @@ def run_evaluation(args: argparse.Namespace) -> int:
             safety_checker=safety_checker,
             framework_version=args.framework_version,
             ignore_errors=args.ignore_errors,
+            self_consistency_samples=args.self_consistency,
         )
 
         print("\nEvaluating samples...")
@@ -305,6 +306,14 @@ def create_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.5,
         help="Hallucination threshold (sum of neutral + contradiction). Default 0.5.",
+    )
+
+    # Proxy Logprobs / Confidence
+    parser.add_argument(
+        "--self-consistency",
+        type=int,
+        default=0,
+        help="Number of temperature-sampled responses for proxy confidence (for models without logprobs). Defaults to 0 (disabled).",
     )
 
     # Execution controls & API options

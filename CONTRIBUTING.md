@@ -9,7 +9,7 @@ First off, thank you for considering contributing to `medeval-framework`! We wel
 ### 1. Fork and Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/medeval-framework.git
+git clone https://github.com/TeslaInch/medeval-framework.git
 cd medeval-framework
 ```
 

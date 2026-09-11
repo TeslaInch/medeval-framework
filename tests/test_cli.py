@@ -174,6 +174,7 @@ class TestCLIEvaluationExecution:
             framework_version="0.1.0",
             verbose=True,
             trust_remote_code=False,
+            self_consistency=0,
         )
 
         # 3. Execute
@@ -207,6 +208,8 @@ class TestCLIEvaluationExecution:
             ignore_errors=False,
             framework_version="0.1.0",
             verbose=False,
+            trust_remote_code=False,
+            self_consistency=0,
         )
         exit_code = run_evaluation(args)
         assert exit_code == 1

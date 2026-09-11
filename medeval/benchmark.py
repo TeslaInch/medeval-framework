@@ -121,13 +121,16 @@ class BenchmarkLoader:
         )
         return filtered
 
-    def _load_hf_dataset(self, dataset_name: str, config: str | None = None) -> Any:
+    def _load_hf_dataset(
+        self, dataset_name: str, config: str | None = None, split_override: str | None = None
+    ) -> Any:
         """Load a HuggingFace dataset, raising ``DatasetLoadError`` on failure.
 
         Args:
             dataset_name: HuggingFace dataset identifier.
             config: Optional dataset configuration name (for datasets with
                 multiple sub-configs).
+            split_override: Optional string to override the default split.
 
         Returns:
             A HuggingFace ``Dataset`` object for the configured split.
@@ -145,7 +148,9 @@ class BenchmarkLoader:
             ) from exc
 
         try:
-            load_kwargs: dict[str, Any] = {"split": self._split}
+            load_kwargs: dict[str, Any] = {
+                "split": split_override if split_override else self._split
+            }
             if self._cache_dir is not None:
                 load_kwargs["cache_dir"] = self._cache_dir
 
@@ -258,8 +263,8 @@ class BenchmarkLoader:
             DatasetLoadError: If the dataset cannot be loaded or the expected
                 columns are missing.
         """
-        dataset_name = "pubmed_qa"
-        raw = self._load_hf_dataset(dataset_name, config="pqa_labeled")
+        dataset_name = "qiaojin/PubMedQA"
+        raw = self._load_hf_dataset(dataset_name, config="pqa_labeled", split="train")
         raw = self._cap(raw)
 
         required_columns = {"pubid", "question", "context", "final_decision"}
@@ -404,3 +409,233 @@ class BenchmarkLoader:
 
         logger.info("Loaded %d MMLU-Medical samples from split='%s'.", len(samples), self._split)
         return self._filter_by_topic(samples)
+
+    # ------------------------------------------------------------------
+    # MMLU-Pro Medical
+    # ------------------------------------------------------------------
+
+    def load_mmlu_pro_medical(self) -> list[MedicalEvalSample]:
+        """Load MMLU-Pro and filter for medical/health/biology categories.
+
+        MMLU-Pro contains 10-option questions.
+        """
+        dataset_name = "TIGER-Lab/MMLU-Pro"
+        samples: list[MedicalEvalSample] = []
+        try:
+            raw = self._load_hf_dataset(dataset_name, config="main")
+        except Exception:
+            logger.warning("Could not load MMLU-Pro dataset, skipping.")
+            return []
+
+        for i, row in enumerate(raw):
+            category = str(row.get("category", "")).lower()
+            if category not in ("health", "biology", "clinical knowledge", "medicine"):
+                continue
+
+            options = row.get("options", [])
+            # In MMLU-Pro, choices are usually A-J.
+            # Convert list of options into a dict.
+            import string
+
+            letters = list(string.ascii_uppercase)
+            choice_map = {letters[j]: opt for j, opt in enumerate(options)}
+
+            answer_idx = row.get("answer")
+            ground_truth = choice_map.get(str(answer_idx), str(answer_idx))
+
+            sample = MedicalEvalSample(
+                id=f"mmlu_pro_{i}",
+                question=str(row.get("question", "")),
+                ground_truth=ground_truth,
+                model_prediction="",
+                metadata={
+                    "dataset": "mmlu_pro",
+                    "split": self._split,
+                    "category": category,
+                    "choices": choice_map,
+                },
+            )
+            samples.append(sample)
+
+        samples = self._cap_list(samples)
+        logger.info("Loaded %d MMLU-Pro samples.", len(samples))
+        return self._filter_by_topic(samples)
+
+    # ------------------------------------------------------------------
+    # MedCalc-Bench
+    # ------------------------------------------------------------------
+
+    def load_medcalc_bench(self) -> list[MedicalEvalSample]:
+        """Load MedCalc-Bench for deterministic medical calculations."""
+        dataset_name = "medcalc/medcalc-bench"
+        samples: list[MedicalEvalSample] = []
+        try:
+            raw = self._load_hf_dataset(dataset_name)
+        except Exception:
+            logger.warning("Could not load MedCalc-Bench dataset, skipping.")
+            return []
+
+        for i, row in enumerate(raw):
+            sample = MedicalEvalSample(
+                id=f"medcalc_{i}",
+                question=str(row.get("question", row.get("text", ""))),
+                ground_truth=str(row.get("answer", row.get("ground_truth", ""))),
+                model_prediction="",
+                metadata={
+                    "dataset": "medcalc",
+                    "split": self._split,
+                },
+            )
+            samples.append(sample)
+
+        samples = self._cap_list(samples)
+        logger.info("Loaded %d MedCalc-Bench samples.", len(samples))
+        return self._filter_by_topic(samples)
+
+    # ------------------------------------------------------------------
+    # Med-HALT
+    # ------------------------------------------------------------------
+
+    def load_med_halt(self) -> list[MedicalEvalSample]:
+        """Load Med-HALT for hallucination evaluation."""
+        dataset_name = "medhalt/medhalt"
+        samples: list[MedicalEvalSample] = []
+        try:
+            raw = self._load_hf_dataset(dataset_name, config="rht")
+        except Exception:
+            logger.warning("Could not load Med-HALT dataset, skipping.")
+            return []
+
+        for i, row in enumerate(raw):
+            sample = MedicalEvalSample(
+                id=f"medhalt_{i}",
+                question=str(row.get("question", row.get("prompt", ""))),
+                ground_truth=str(row.get("expected_output", row.get("answer", ""))),
+                model_prediction="",
+                metadata={
+                    "dataset": "medhalt",
+                    "split": self._split,
+                },
+            )
+            samples.append(sample)
+
+        samples = self._cap_list(samples)
+        logger.info("Loaded %d Med-HALT samples.", len(samples))
+        return self._filter_by_topic(samples)
+
+    # ------------------------------------------------------------------
+    # Custom Sickle Cell Dataset
+    # ------------------------------------------------------------------
+
+    def load_custom_hf_dataset(
+        self, dataset_name: str, config: str | None = None
+    ) -> list[MedicalEvalSample]:
+        """Load any custom HuggingFace dataset dynamically."""
+        samples: list[MedicalEvalSample] = []
+        try:
+            raw = self._load_hf_dataset(dataset_name, config=config)
+        except Exception as e:
+            logger.warning("Could not load custom HF dataset %s: %s", dataset_name, e)
+            return []
+
+        for i, row in enumerate(raw):
+            # Fallback extractions for common QA schemas
+            question = str(row.get("question", row.get("text", row.get("prompt", ""))))
+            gt = str(
+                row.get(
+                    "answer", row.get("ground_truth", row.get("answer_idx", row.get("target", "")))
+                )
+            )
+
+            choices = row.get("options", row.get("choices", {}))
+            if isinstance(choices, list):
+                import string
+
+                letters = list(string.ascii_uppercase)
+                choices = {letters[j]: opt for j, opt in enumerate(choices) if j < len(letters)}
+            elif isinstance(choices, str):
+                try:
+                    import json
+
+                    choices = json.loads(choices)
+                except Exception:
+                    pass
+
+            # Map choice key to choice value if it's a MC question
+            if isinstance(choices, dict) and gt in choices:
+                gt = choices[gt]
+
+            sample = MedicalEvalSample(
+                id=str(row.get("id", f"custom_hf_{i}")),
+                question=question,
+                ground_truth=gt,
+                model_prediction="",
+                metadata={
+                    "dataset": dataset_name,
+                    "split": self._split,
+                    "choices": choices,
+                },
+            )
+            samples.append(sample)
+
+        samples = self._cap_list(samples)
+        logger.info("Loaded %d samples from custom HF dataset %s.", len(samples), dataset_name)
+        return self._filter_by_topic(samples)
+
+    def load_custom_jsonl(self, filepath: str) -> list[MedicalEvalSample]:
+        """Load a custom proprietary dataset from a local JSONL file."""
+        import json
+
+        samples: list[MedicalEvalSample] = []
+
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    if not line.strip():
+                        continue
+                    row = json.loads(line)
+
+                    question = str(row.get("question", row.get("text", row.get("prompt", ""))))
+                    gt = str(
+                        row.get(
+                            "answer",
+                            row.get("ground_truth", row.get("answer_idx", row.get("target", ""))),
+                        )
+                    )
+                    choices = row.get("options", row.get("choices", {}))
+
+                    if isinstance(choices, list):
+                        import string
+
+                        letters = list(string.ascii_uppercase)
+                        choices = {
+                            letters[j]: opt for j, opt in enumerate(choices) if j < len(letters)
+                        }
+
+                    if isinstance(choices, dict) and gt in choices:
+                        gt = choices[gt]
+
+                    sample = MedicalEvalSample(
+                        id=str(row.get("id", f"custom_jsonl_{i}")),
+                        question=question,
+                        ground_truth=gt,
+                        model_prediction="",
+                        metadata={
+                            "dataset": filepath,
+                            "choices": choices,
+                        },
+                    )
+                    samples.append(sample)
+        except Exception as e:
+            logger.warning("Could not load custom JSONL dataset %s: %s", filepath, e)
+            return []
+
+        samples = self._cap_list(samples)
+        logger.info("Loaded %d samples from custom JSONL dataset %s.", len(samples), filepath)
+        return self._filter_by_topic(samples)
+
+    def _cap_list(self, samples: list[MedicalEvalSample]) -> list[MedicalEvalSample]:
+        """Helper to apply max_samples to an in-memory list."""
+        if self._max_samples is not None:
+            return samples[: self._max_samples]
+        return samples

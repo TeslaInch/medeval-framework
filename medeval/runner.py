@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import asdict, replace
 
 from .accuracy import BaseScorer, ExactMatchScorer, SemanticSimilarityScorer
 from .answer_extraction import extract_answer_choice
+from .cot_uncertainty import CoTUncertaintyScorer
 from .hallucination import NLIHallucinationDetector
 from .models.base import BaseModelConnector
 from .report import ReportGenerator
@@ -89,6 +91,7 @@ class BenchmarkRunner:
         scorers: Optional list of scorers (e.g. ExactMatchScorer, SemanticSimilarityScorer).
             If none are provided, a default ``ExactMatchScorer`` is used.
         hallucination_detector: Optional NLI-based detector to scan for hallucinations.
+        cot_uncertainty_scorer: Optional CoT uncertainty scorer pipeline for reasoning models.
         safety_checker: Optional safety checker or list of safety checkers.
         framework_version: Reproducibility tracker version string. Defaults to '0.1.0'.
         prompt_formatter: Optional callable to format prompts. Defaults to
@@ -104,11 +107,13 @@ class BenchmarkRunner:
         model: BaseModelConnector,
         scorers: list[BaseScorer] | None = None,
         hallucination_detector: NLIHallucinationDetector | bool | None = True,
+        cot_uncertainty_scorer: CoTUncertaintyScorer | None = None,
         safety_checker: BaseSafetyChecker | list[BaseSafetyChecker] | None = None,
         framework_version: str | None = None,
         prompt_formatter: callable | None = None,  # type: ignore[valid-type]
         ignore_errors: bool = False,
         checkpoint_path: str | None = None,
+        self_consistency_samples: int = 0,
     ) -> None:
         """Initialise runner configuration."""
         from . import __version__
@@ -127,6 +132,8 @@ class BenchmarkRunner:
         else:
             self._hallucination_detector = hallucination_detector
 
+        self._cot_uncertainty_scorer = cot_uncertainty_scorer
+
         self._safety_checker: BaseSafetyChecker | None
         if isinstance(safety_checker, list):
             self._safety_checker = SafetySuite(safety_checker)
@@ -136,10 +143,10 @@ class BenchmarkRunner:
         self._prompt_formatter = prompt_formatter or default_prompt_formatter
         self._ignore_errors = ignore_errors
         self._checkpoint_path = checkpoint_path
+        self._self_consistency_samples = self_consistency_samples
 
     def _determine_y_prob(
         self,
-        prediction: str,
         probs: list[float],
     ) -> float | None:
         """Extract the model's confidence probability (y_prob) for its prediction.
@@ -149,26 +156,12 @@ class BenchmarkRunner:
         score if mapping fails.
 
         Args:
-            prediction: Normalized model prediction text.
             probs: Sequence of token or class probabilities.
 
         Returns:
             The extracted float probability score, or None.
         """
         if not probs:
-            # Fallback for models without logprobs (e.g. Anthropic Claude):
-            # Parse verbalized confidence strings like "Confidence: 85%" or "85% confident"
-            import re  # noqa: PLC0415
-
-            match = re.search(
-                r"(?:confidence|certainty|probability)?\s*:?\s*(\d{1,3})\s*%",
-                prediction,
-                re.IGNORECASE,
-            )
-            if match:
-                val = float(match.group(1))
-                if 0.0 <= val <= 100.0:
-                    return val / 100.0
             return None
 
         # For generative models, probs is a sequence of token probabilities.
@@ -195,44 +188,91 @@ class BenchmarkRunner:
             # 2. Extract choice metadata if present
             choices = sample.metadata.get("choices")
 
-            # 3. Extract confidence probability (y_prob)
-            y_prob = self._determine_y_prob(prediction, probs)
-
-            # 4. Compute correctness (y_true) using standard exact-match comparison
             # Extract the actual answer choice before computing exact match
             extracted_answer = extract_answer_choice(prediction, choices)
+
+            # Extract confidence probability (y_prob)
+            y_prob: float | None = None
+            if not probs:
+                # If logprobs are missing, try CoT Uncertainty scoring first
+                think_match = re.search(r"<think>(.*?)</think>", prediction, flags=re.DOTALL)
+                if think_match and self._cot_uncertainty_scorer is not None:
+                    thought_trace = think_match.group(1).strip()
+                    logger.info("CoT trace detected. Computing uncertainty without resampling.")
+                    y_prob = self._cot_uncertainty_scorer.score(thought_trace)
+                # Fallback to self-consistency resampling if no CoT trace or scorer
+                elif self._self_consistency_samples > 0:
+                    logger.info("Falling back to self-consistency resampling.")
+                    sampled_preds = self._model.generate_n(
+                        prompt, n=self._self_consistency_samples, temperature=0.7
+                    )
+                    match_count = sum(
+                        1
+                        for sp in sampled_preds
+                        if extract_answer_choice(sp, choices) == extracted_answer
+                    )
+                    y_prob = float(match_count) / self._self_consistency_samples
+            else:
+                y_prob = self._determine_y_prob(probs)
+
+            # 4. Clean CoT reasoning blocks before passing to semantic checkers
+            # This prevents 512-token truncation limits and focuses evaluation on the final answer.
+            prediction_clean = re.sub(
+                r"<think>.*?</think>", "", prediction, flags=re.DOTALL
+            ).strip()
+            if not prediction_clean:
+                prediction_clean = prediction.strip()
+
+            # 5. Apply NLI hallucination detector
+            is_hallucination = None
+            if self._hallucination_detector is not None:
+                if prediction_clean:
+                    premise = f"Context: {sample.question}\nFact: {sample.ground_truth}"
+                    nli_res = self._hallucination_detector.detect(
+                        ground_truth=premise, model_prediction=prediction_clean
+                    )
+                    is_hallucination = nli_res.is_hallucination
+
+            if is_hallucination is not None:
+                sample.metadata["is_hallucination"] = is_hallucination
+            # 6. SMART FALLBACK LOGIC: Try Exact Match FIRST
+            metadata = dict(sample.metadata)
             em_scorer = ExactMatchScorer()
 
-            if choices and extracted_answer in choices:
-                eval_val = choices[extracted_answer]
+            if choices:
+                eval_val = choices.get(extracted_answer, extracted_answer)
             else:
-                eval_val = extracted_answer
+                eval_val = prediction_clean
 
             y_true = 1 if em_scorer.score([eval_val], [sample.ground_truth]) == 1.0 else 0
 
-            # 5. Populate metadata dictionary
-            metadata = dict(sample.metadata)
+            # If Exact Match failed, fallback to Semantic Similarity
+            if y_true == 0:
+                sem_scorer = SemanticSimilarityScorer()
+                f1 = sem_scorer.score([prediction_clean], [sample.ground_truth])
+                metadata["bert_score_f1"] = float(f1)
+
+                if float(f1) > 0.75:
+                    y_true = 1
+
+                    # NLI override: Semantic similarity cannot override a logical medical contradiction
+                    if is_hallucination is True:
+                        logger.info(
+                            "NLI override: F1 > 0.75 but NLI flagged contradiction. Setting y_true=0"
+                        )
+                        y_true = 0
+            else:
+                metadata["bert_score_f1"] = 1.0
+
+            # 7. Populate metadata dictionary
             metadata["y_true"] = y_true
             if y_prob is not None:
                 metadata["y_prob"] = y_prob
-
-            # 6. Apply accuracy scorers
-            for scorer in self._scorers:
-                if isinstance(scorer, SemanticSimilarityScorer):
-                    f1 = scorer.score([prediction], [sample.ground_truth])
-                    metadata["bert_score_f1"] = float(f1)
-
-            # 7. Apply NLI hallucination detector
-            if self._hallucination_detector is not None:
-                premise = f"Context: {sample.question}\nFact: {sample.ground_truth}"
-                nli_res = self._hallucination_detector.detect(
-                    ground_truth=premise, model_prediction=prediction
-                )
-                metadata["is_hallucination"] = nli_res.is_hallucination
+            metadata["is_hallucination"] = is_hallucination
 
             # 8. Apply safety checks
             if self._safety_checker is not None:
-                violations = self._safety_checker.check_contraindications(prediction)
+                violations = self._safety_checker.check_contraindications(prediction_clean)
                 metadata["safety_violations"] = violations
 
             # 9. Return reconstructed immutable sample

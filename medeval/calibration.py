@@ -16,6 +16,7 @@ References:
 from __future__ import annotations
 
 import logging
+from typing import Callable
 
 import numpy as np
 
@@ -217,3 +218,116 @@ def calculate_brier_score(
 
     brier_score = np.mean((probs - labels) ** 2)
     return float(brier_score)
+
+
+def calculate_ace(
+    y_true: list[int] | np.ndarray,
+    y_prob: list[float] | np.ndarray,
+    n_bins: int = 10,
+) -> float:
+    """Compute the Adaptive Calibration Error (ACE) using equal-frequency bins.
+
+    Unlike ECE which uses equal-width bins, ACE partitions predictions into
+    quantiles such that each bin contains roughly the same number of samples.
+    This prevents degeneracy on modern overconfident models where most predictions
+    cluster in the top bin.
+
+    Args:
+        y_true: Binary ground-truth labels (0 or 1).
+        y_prob: Predicted probability for the positive class [0, 1].
+        n_bins: Number of equal-frequency bins. Defaults to 10.
+
+    Returns:
+        The Adaptive Calibration Error as a float in [0, 1].
+    """
+    if len(y_true) == 0 or len(y_prob) == 0:
+        raise ValueError("y_true and y_prob must not be empty.")
+    if len(y_true) != len(y_prob):
+        raise ValueError("y_true and y_prob must have the same length.")
+    if not isinstance(n_bins, int) or n_bins < 1:
+        raise ValueError("n_bins must be a positive integer.")
+
+    labels = np.asarray(y_true, dtype=np.int64)
+    probs = np.asarray(y_prob, dtype=np.float64)
+
+    if not np.all((labels == 0) | (labels == 1)):
+        raise ValueError("All values in y_true must be binary (0 or 1).")
+    if np.any(probs < 0.0) or np.any(probs > 1.0):
+        raise ValueError("All values in y_prob must be in the range [0, 1].")
+
+    # Sort probabilities and labels
+    sort_idx = np.argsort(probs)
+    probs_sorted = probs[sort_idx]
+    labels_sorted = labels[sort_idx]
+
+    # Partition into equal-frequency bins
+    prob_bins = np.array_split(probs_sorted, n_bins)
+    label_bins = np.array_split(labels_sorted, n_bins)
+
+    ace = 0.0
+    valid_bins = 0
+
+    for prob_bin, label_bin in zip(prob_bins, label_bins):
+        if len(prob_bin) == 0:
+            continue
+
+        bin_accuracy = float(label_bin.mean())
+        bin_confidence = float(prob_bin.mean())
+
+        ace += abs(bin_accuracy - bin_confidence)
+        valid_bins += 1
+
+    if valid_bins == 0:
+        return 0.0
+
+    return float(ace / valid_bins)
+
+
+def bootstrap_confidence_interval(
+    data: np.ndarray,
+    metric_fn: Callable[[np.ndarray], float],
+    n_resamples: int = 1000,
+    ci_level: float = 0.95,
+    seed: int = 42,
+) -> tuple[float, float, float]:
+    """Calculate point estimate and bootstrap confidence intervals for a metric.
+
+    Uses vectorised NumPy resampling with replacement to establish confidence
+    intervals for the given metric.
+
+    Args:
+        data: A NumPy array containing the data (can be 1D for accuracy, or 2D for y_true/y_prob).
+        metric_fn: A callable metric function taking the data array and returning a float.
+        n_resamples: Number of bootstrap resamples. Defaults to 1000.
+        ci_level: Confidence interval level (e.g., 0.95 for 95%).
+        seed: Random seed for reproducibility.
+
+    Returns:
+        A tuple of (point_estimate, ci_lower, ci_upper).
+    """
+    if data.size == 0:
+        raise ValueError("data array must not be empty.")
+
+    point_estimate = metric_fn(data)
+
+    rng = np.random.default_rng(seed)
+    n_samples = len(data)
+
+    # Resample indices n_resamples times
+    indices = rng.choice(n_samples, size=(n_resamples, n_samples), replace=True)
+
+    bootstrapped_metrics = []
+    for idx_row in indices:
+        boot_data = data[idx_row]
+        bootstrapped_metrics.append(metric_fn(boot_data))
+
+    bootstrapped_array = np.asarray(bootstrapped_metrics)
+
+    alpha = 1.0 - ci_level
+    lower_percentile = (alpha / 2.0) * 100
+    upper_percentile = (1.0 - alpha / 2.0) * 100
+
+    ci_lower = float(np.percentile(bootstrapped_array, lower_percentile))
+    ci_upper = float(np.percentile(bootstrapped_array, upper_percentile))
+
+    return float(point_estimate), ci_lower, ci_upper

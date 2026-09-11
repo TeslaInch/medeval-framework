@@ -148,7 +148,8 @@ class ExactMatchScorer(BaseScorer):
         _validate_inputs(predictions, references)
 
         matches: int = sum(
-            _normalize(pred) == _normalize(ref) for pred, ref in zip(predictions, references)
+            f" {_normalize(ref)} " in f" {_normalize(pred)} "
+            for pred, ref in zip(predictions, references)
         )
         accuracy: float = matches / len(predictions)
 
@@ -238,7 +239,7 @@ class SemanticSimilarityScorer(BaseScorer):
             references: Ground-truth answer strings.
 
         Returns:
-            Mean BERTScore F1 across all samples, as a float in [0.0, 1.0].
+            Mean BERTScore F1 as a float in [0.0, 1.0].
 
         Raises:
             ValueError: If inputs are empty or length-mismatched.
@@ -246,17 +247,23 @@ class SemanticSimilarityScorer(BaseScorer):
         """
         _validate_inputs(predictions, references)
         self._load_metric()
+        assert self._metric is not None
 
-        kwargs = {
-            "predictions": predictions,
-            "references": references,
-            "model_type": self._model_type,
-        }
-        if self._device is not None:
-            kwargs["device"] = self._device
+        # Provide empty string for device to let evaluate handle fallback safely
+        # in environments without CUDA.
+        device_kwarg = {"device": self._device} if self._device else {}
+        results = self._metric.compute(
+            predictions=predictions,
+            references=references,
+            model_type=self._model_type,
+            lang="en",
+            **device_kwarg,
+        )
 
-        results = self._metric.compute(**kwargs)
-        f1_scores: list[float] = results["f1"]
+        f1_scores: list[float] = results.get("f1", [])
+        if not f1_scores:
+            return 0.0
+
         mean_f1: float = sum(f1_scores) / len(f1_scores)
 
         logger.debug(

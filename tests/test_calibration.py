@@ -12,9 +12,15 @@ Tests cover:
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
-from medeval.calibration import calculate_brier_score, calculate_ece, calculate_mce
+from medeval.calibration import (
+    bootstrap_confidence_interval,
+    calculate_brier_score,
+    calculate_ece,
+    calculate_mce,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -180,6 +186,13 @@ class TestEmptyBinsHandled:
 class TestInputValidation:
     """Tests that all invalid inputs are rejected with clear ValueError messages."""
 
+    def test_bootstrap_invalid_inputs(self) -> None:
+        def dummy_metric(d: np.ndarray) -> float:
+            return 0.0
+
+        with pytest.raises(ValueError, match="data array must not be empty"):
+            bootstrap_confidence_interval(np.array([]), dummy_metric)
+
     def test_raises_on_empty_inputs(self) -> None:
         """ValueError must be raised when either input is empty."""
         with pytest.raises(ValueError, match="must not be empty"):
@@ -223,6 +236,18 @@ class TestInputValidation:
 
 
 class TestMaximumCalibrationError:
+    def test_bootstrap_accuracy(self) -> None:
+        """Test bootstrap CI correctly bounds deterministic accuracy."""
+        y_true = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]  # 50% accuracy
+
+        def acc_metric(data: np.ndarray) -> float:
+            return float(data.mean())
+
+        data_array = np.array(y_true, dtype=float)
+        point, lower, upper = bootstrap_confidence_interval(
+            data_array, acc_metric, n_resamples=1000, ci_level=0.95, seed=42
+        )
+
     def test_mce_with_perfect_calibration(self) -> None:
         """MCE must be 0.0 when perfectly calibrated."""
         y_true = [1] * 9 + [0] * 1

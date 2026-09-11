@@ -25,6 +25,7 @@ class HuggingFaceConnector(BaseModelConnector):
     Args:
         model_name: Hugging Face repository name or local directory path.
         device: The PyTorch device identifier (e.g., 'cpu', 'cuda', 'cuda:0').
+        max_tokens: Maximum generated tokens per response. Defaults to 2048.
         generation_kwargs: Dictionary of configuration options passed directly
             to ``model.generate(...)``.
     """
@@ -33,11 +34,12 @@ class HuggingFaceConnector(BaseModelConnector):
         self,
         model_name: str,
         device: str = "cpu",
+        max_tokens: int = 2048,
         generation_kwargs: dict[str, Any] | None = None,
         trust_remote_code: bool = False,
     ) -> None:
         """Initialise the connector with model name, target device and options."""
-        super().__init__(model_name=model_name)
+        super().__init__(model_name=model_name, max_tokens=max_tokens)
         self._device = device
         self._generation_kwargs = generation_kwargs or {}
         self._trust_remote_code = trust_remote_code
@@ -132,11 +134,12 @@ class HuggingFaceConnector(BaseModelConnector):
         self._model.to(self._device)
         self._model.eval()
 
-    def generate(self, prompt: str) -> str:
-        """Generate text from a local causal model.
+    def generate(self, prompt: str, temperature: float = 0.0) -> str:  # noqa: ARG002
+        """Query the Hugging Face model for a textual prediction.
 
         Args:
             prompt: Text prompt to feed into the model.
+            temperature: The sampling temperature. Defaults to 0.0 (greedy).
 
         Returns:
             The generated response string (excluding the input prompt).
@@ -152,7 +155,7 @@ class HuggingFaceConnector(BaseModelConnector):
 
         # Merge defaults with custom generation kwargs
         gen_opts = {
-            "max_new_tokens": 128,
+            "max_new_tokens": self.max_tokens,
             "do_sample": False,
             "pad_token_id": self._tokenizer.eos_token_id,
             **self._generation_kwargs,

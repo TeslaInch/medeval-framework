@@ -28,9 +28,15 @@ import json
 import logging
 from collections.abc import Iterator, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from .calibration import calculate_brier_score, calculate_ece, calculate_mce
+from .calibration import (
+    bootstrap_confidence_interval,
+    calculate_ace,
+    calculate_brier_score,
+    calculate_ece,
+    calculate_mce,
+)
 from .structures import EvaluationReport, MedicalEvalSample
 
 logger = logging.getLogger(__name__)
@@ -143,7 +149,7 @@ class ReportGenerator:
         return rate, ci
 
     def _calculate_binary_ci(self, values: Sequence[bool | int]) -> tuple[float, float] | None:
-        """Calculate 95% CI for binary proportions using Wald's formula or Bootstrap."""
+        """Calculate 95% CI for binary proportions using the Wilson score interval."""
         if not values:
             return None
 
@@ -153,16 +159,17 @@ class ReportGenerator:
 
         p = sum(values) / n
 
-        # Check normal approximation conditions (magic number = 5)
-        if n >= 100 and (n * p >= 5) and (n * (1 - p) >= 5):
-            import math
+        import math
 
-            z = 1.96  # For 95% confidence
-            se = math.sqrt(p * (1 - p) / n)
-            return max(0.0, p - z * se), min(1.0, p + z * se)
+        z = 1.96  # For 95% confidence
+        denominator = 1 + z**2 / n
+        center_adj = p + z**2 / (2 * n)
+        se = math.sqrt((p * (1 - p) + z**2 / (4 * n)) / n)
 
-        # Fallback to bootstrap
-        return self._calculate_continuous_ci(values)
+        lower = (center_adj - z * se) / denominator
+        upper = (center_adj + z * se) / denominator
+
+        return max(0.0, lower), min(1.0, upper)
 
     def _calculate_continuous_ci(
         self, values: Sequence[float | int | bool]
@@ -174,19 +181,14 @@ class ReportGenerator:
         import numpy as np
 
         arr = np.array(values, dtype=float)
-        n = len(arr)
 
-        # Resample 10,000 times
-        n_iterations = 10000
-        # Use a vectorized bootstrap for speed
-        # random.choice is fast, but np.random.choice inside a loop is also fine
-        # For small n, this is virtually instantaneous
-        boot_means = np.empty(n_iterations, dtype=float)
-        for i in range(n_iterations):
-            sample = np.random.choice(arr, size=n, replace=True)
-            boot_means[i] = np.mean(sample)
+        def mean_metric(data: np.ndarray) -> float:
+            return float(np.mean(data))
 
-        return float(np.percentile(boot_means, 2.5)), float(np.percentile(boot_means, 97.5))
+        _, ci_lower, ci_upper = bootstrap_confidence_interval(
+            arr, mean_metric, n_resamples=1000, ci_level=0.95
+        )
+        return ci_lower, ci_upper
 
     def _aggregate_safety_violations(self) -> list[dict[str, Any]]:
         """Collect all safety violations across all samples.
@@ -226,11 +228,33 @@ class ReportGenerator:
             )
             return {}
 
-        return {
-            "ece": calculate_ece(y_true, y_prob),
-            "mce": calculate_mce(y_true, y_prob),
-            "brier_score": calculate_brier_score(y_true, y_prob),
+        import numpy as np
+
+        data = np.column_stack([y_true, y_prob])
+
+        def wrap_metric(metric_fn: Callable[..., float]) -> Callable[[np.ndarray], float]:
+            def wrapper(d: np.ndarray) -> float:
+                return float(metric_fn(d[:, 0].astype(int).tolist(), d[:, 1].tolist()))
+
+            return wrapper
+
+        metrics_def = {
+            "ece": calculate_ece,
+            "ace": calculate_ace,
+            "mce": calculate_mce,
+            "brier_score": calculate_brier_score,
         }
+
+        results = {}
+        for name, fn in metrics_def.items():
+            point, lower, upper = bootstrap_confidence_interval(
+                data, wrap_metric(fn), n_resamples=1000, ci_level=0.95
+            )
+            results[name] = point
+            results[f"{name}_ci_lower"] = lower
+            results[f"{name}_ci_upper"] = upper
+
+        return results
 
     # ------------------------------------------------------------------
     # Public interface

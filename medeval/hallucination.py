@@ -191,10 +191,14 @@ class NLIHallucinationDetector:
 
         self._load_pipeline()
 
-        # The pipeline takes a dictionary with text and text_pair for NLI
+        # We pass truncation=True and max_length=512 so the tokenizer automatically trims inputs
+        # that exceed the model's max token limit, as some community models (like PubMedBERT)
+        # have corrupted tokenizer configs with max_length=1e30.
         raw_list = self._pipeline(
             {"text": ground_truth, "text_pair": model_prediction},
             top_k=None,
+            truncation=True,
+            max_length=512,
         )
 
         # Depending on pipeline input/output types, handle the nesting

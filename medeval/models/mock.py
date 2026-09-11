@@ -48,13 +48,14 @@ class MockConnector(BaseModelConnector):
         self._mapping = mapping or {}
         self._index = 0
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, temperature: float = 0.0) -> str:  # noqa: ARG002
         """Mock response text generation.
 
         Matches prompt keywords or falls back to sequential iteration.
 
         Args:
             prompt: Text prompt to feed to the mock.
+            temperature: The sampling temperature. Defaults to 0.0 (greedy).
 
         Returns:
             Predefined mock answer.
