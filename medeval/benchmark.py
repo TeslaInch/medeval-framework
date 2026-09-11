@@ -264,7 +264,7 @@ class BenchmarkLoader:
                 columns are missing.
         """
         dataset_name = "qiaojin/PubMedQA"
-        raw = self._load_hf_dataset(dataset_name, config="pqa_labeled", split="train")
+        raw = self._load_hf_dataset(dataset_name, config="pqa_labeled", split_override="train")
         raw = self._cap(raw)
 
         required_columns = {"pubid", "question", "context", "final_decision"}
