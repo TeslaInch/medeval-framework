@@ -28,8 +28,9 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 ## 🌟 Key Features
 
 - **Multi-Dataset Benchmarks**: Out-of-the-box loaders for standard medical datasets (**MedQA**, **PubMedQA**, **MedMCQA**, **MMLU-Medical**).
+- **Custom Proprietary Data**: Effortlessly evaluate your own internal datasets via **Generic JSONL Loading** (air-gapped PHI-safe) or dynamic **HuggingFace Dataset** ingestion.
 - **Dynamic Topic Filtering**: Filter any benchmark dataset by medical domain or disease keyword on the fly (e.g. `--topic "sickle"`, `--topic "cardiac"`, `--topic "renal"`).
-- **Universal SOTA Connectors**: Query local PyTorch weights, PEFT/LoRA adapters, OpenAI APIs (`gpt-4o`), or SOTA routers (**OpenRouter**) driving Claude 3.5 Sonnet, Llama 3.1 70B/405B, DeepSeek, and Gemini.
+- **Universal SOTA Connectors**: Query local PyTorch weights, PEFT/LoRA adapters (with automatic base-model merging), local RAG architectures (`llama_cpp` / ChromaDB), OpenAI APIs (`gpt-4o`), or SOTA routers (**OpenRouter**) driving Claude 3.5 Sonnet, Llama 3.1 70B/405B, DeepSeek, and Gemini.
 - **Dual Clinical Safety Audit**:
   - *Deterministic Checker*: Pure-Python regex engine detecting explicit contraindications in **Sickle Cell Disease** and **Cardiology**.
   - *Semantic Safety Net*: Cross-encoder NLI hazard verification (`SemanticSafetyChecker`) flagging context-dependent medical risks.
@@ -37,10 +38,30 @@ A rigorous, open-source Python evaluation framework designed to benchmark medica
 - **Advanced Calibration & Metrics Suite**: 
   - Vectorized Expected Calibration Error (**ECE**), Maximum Calibration Error (**MCE**), and **Brier Score**.
   - **Generative Sequence Mean**: Calculates robust confidence (`y_prob`) by averaging generated token probabilities, natively supporting OpenAI logprobs.
+  - **Zero-Shot CoT Uncertainty Extraction**: Calculates probabilities directly from `<think>` reasoning traces for models that do not output logprobs (e.g. DeepSeek R1, OpenAI o1).
   - **Dynamic Bootstrap Resampling**: Automatically calculates rigorous 95% Confidence Intervals for Accuracy and Hallucination Rates.
 - **Incremental Checkpointing**: Instantly saves results to a `.jsonl` stream, allowing you to resume interrupted evaluations flawlessly without re-running API calls.
 - **Robust Answer Extraction**: High-fidelity regex strategies that flawlessly strip markdown and extract multi-choice keys from verbose clinical reasoning.
 - **Multi-Format Export & Comparison**: Export structured reports to **JSON**, **Markdown** tables (`.md`), or interactive **HTML** dashboards (`.html`), with built-in side-by-side model comparison tools (`compare_reports`).
+
+---
+
+## 📊 Public SOTA Evaluation Benchmarks
+
+The following side-by-side evaluation metrics were generated directly by the `medeval-framework` against 60 highly-filtered clinical queries from **MedQA** and **PubMedQA**.
+
+| Metric | **claude-opus-4-8** | **deepseek-v4-flash** | **glm-5.3** | **gpt-5.6-sol** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Accuracy** | `0.8966` | `0.7500` | `0.9286` | `0.8929` |
+| **Accuracy Ci Lower** | `0.7361` | `0.5664` | `0.7735` | `0.7280` |
+| **Accuracy Ci Upper** | `0.9642` | `0.8732` | `0.9802` | `0.9629` |
+| **Brier Score** | `0.1111` | `0.1758` | `0.4365` | `0.4008` |
+| **Ece** | `0.1264` | `0.2016` | `0.6190` | `0.5833` |
+| **Hallucination Rate** | `0.5862` | `0.2857` | `0.6071` | `0.4643` |
+| **Hallucination Rate Ci Upper** | `0.7449` | `0.4706` | `0.7643` | `0.6419` |
+| **Safety Violations Count** | `3` | `1` | `3` | `2` |
+
+*Note: High Accuracy combined with high Hallucination Rates points towards memorization of open-source datasets over true clinical reasoning.*
 
 ---
 
