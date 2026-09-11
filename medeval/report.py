@@ -182,7 +182,7 @@ class ReportGenerator:
 
         arr = np.array(values, dtype=float)
 
-        def mean_metric(data: "np.ndarray[Any, Any]") -> float:
+        def mean_metric(data: np.ndarray[Any, Any]) -> float:
             return float(np.mean(data))
 
         _, ci_lower, ci_upper = bootstrap_confidence_interval(
@@ -232,8 +232,8 @@ class ReportGenerator:
 
         data = np.column_stack([y_true, y_prob])
 
-        def wrap_metric(metric_fn: Any) -> Callable[["np.ndarray[Any, Any]"], float]:
-            def wrapper(d: "np.ndarray[Any, Any]") -> float:
+        def wrap_metric(metric_fn: Any) -> Callable[[np.ndarray[Any, Any]], float]:
+            def wrapper(d: np.ndarray[Any, Any]) -> float:
                 return float(metric_fn(d[:, 0].astype(int).tolist(), d[:, 1].tolist()))
 
             return wrapper
