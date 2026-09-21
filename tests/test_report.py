@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
-
-from typing import Any
 
 from medeval.report import ReportGenerator, export_report_to_json
 from medeval.structures import EvaluationReport, MedicalEvalSample
