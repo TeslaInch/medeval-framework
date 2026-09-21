@@ -250,7 +250,7 @@ class TestBenchmarkRunnerErrorHandling:
         connector = MockConnector(predictions=["Success"])
         # Mock generate to throw an error on the second call
         connector.generate = MagicMock(  # type: ignore[method-assign]
-            return_value="Some reasoning...<think>Thinking process</think>Final Answer"
+            side_effect=["Prediction 1", RuntimeError("Inference Error")]
         )
 
         samples = [
