@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from medeval.safety.sickle_cell import SafetyViolation, SickleCellSafetyChecker
+from medeval.safety.base import SafetyViolation
+from medeval.safety.sickle_cell import SickleCellSafetyChecker
 
 
 @pytest.fixture()

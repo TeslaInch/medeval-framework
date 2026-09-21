@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from typing import Any
 import pytest
 
 from medeval.hallucination import (
@@ -30,7 +31,7 @@ def _make_pipeline_output(
     entailment: float,
     neutral: float,
     contradiction: float,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Build a fake text-classification pipeline output."""
     return [
         {"label": _ENTAILMENT_LABEL, "score": entailment},

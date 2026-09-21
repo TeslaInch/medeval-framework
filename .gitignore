@@ -1,11 +1,14 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 dist/
 build/
 *.egg-info/
 .env
 venv/
+.coverage
 mock_report.json
 medeval_demo_report.json
 *.ipynb
@@ -15,7 +18,12 @@ report_*.json
 report_*.md
 checkpoint_*.jsonl
 *.html
-calibration_comparison_matrix.md
+*comparison_matrix.md
+
+# PDFs and raw generated docs
+*.pdf
+sample.txt
+paper_extracted_text.txt
 
 # Test scripts and scratchpads
 examples/

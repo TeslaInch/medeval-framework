@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from typing import Any
+
 from medeval.report import ReportGenerator, export_report_to_json
 from medeval.structures import EvaluationReport, MedicalEvalSample
 
@@ -43,7 +45,7 @@ def _make_sample(
     Returns:
         A ``MedicalEvalSample`` with metadata ready for ``ReportGenerator``.
     """
-    meta = {}
+    meta: dict[str, Any] = {}
     if bert_score is not None:
         meta["bert_score_f1"] = bert_score
     if is_hallucination is not None:

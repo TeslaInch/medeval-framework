@@ -191,8 +191,11 @@ class HuggingFaceConnector(BaseModelConnector):
         with torch.no_grad():
             outputs = self._model(**inputs)
 
+        # Handle models that return a tuple instead of a CausalLMOutput with .logits
+        logits = outputs[0] if isinstance(outputs, tuple) else outputs.logits
+
         # Get logits for the very last input token (predicting the first output token)
-        next_token_logits = outputs.logits[0, -1, :]
+        next_token_logits = logits[0, -1, :]
         probs = torch.softmax(next_token_logits, dim=-1)
 
         # Retrieve the top 5 predicted token probabilities as a surrogate list of confidences
