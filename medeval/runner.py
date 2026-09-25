@@ -22,7 +22,6 @@ from dataclasses import asdict, replace
 
 from .accuracy import BaseScorer, ExactMatchScorer, SemanticSimilarityScorer
 from .answer_extraction import extract_answer_choice
-from .cot_uncertainty import CoTUncertaintyScorer
 from .hallucination import NLIHallucinationDetector
 from .models.base import BaseModelConnector
 from .report import ReportGenerator
@@ -91,7 +90,6 @@ class BenchmarkRunner:
         scorers: Optional list of scorers (e.g. ExactMatchScorer, SemanticSimilarityScorer).
             If none are provided, a default ``ExactMatchScorer`` is used.
         hallucination_detector: Optional NLI-based detector to scan for hallucinations.
-        cot_uncertainty_scorer: Optional CoT uncertainty scorer pipeline for reasoning models.
         safety_checker: Optional safety checker or list of safety checkers.
         framework_version: Reproducibility tracker version string. Defaults to '0.1.0'.
         prompt_formatter: Optional callable to format prompts. Defaults to
@@ -107,7 +105,6 @@ class BenchmarkRunner:
         model: BaseModelConnector,
         scorers: list[BaseScorer] | None = None,
         hallucination_detector: NLIHallucinationDetector | bool | None = True,
-        cot_uncertainty_scorer: CoTUncertaintyScorer | None = None,
         safety_checker: BaseSafetyChecker | list[BaseSafetyChecker] | None = None,
         framework_version: str | None = None,
         prompt_formatter: callable | None = None,  # type: ignore[valid-type]
@@ -131,8 +128,6 @@ class BenchmarkRunner:
             self._hallucination_detector = None
         else:
             self._hallucination_detector = hallucination_detector
-
-        self._cot_uncertainty_scorer = cot_uncertainty_scorer
 
         self._safety_checker: BaseSafetyChecker | None
         if isinstance(safety_checker, list):
@@ -194,14 +189,7 @@ class BenchmarkRunner:
             # Extract confidence probability (y_prob)
             y_prob: float | None = None
             if not probs:
-                # If logprobs are missing, try CoT Uncertainty scoring first
-                think_match = re.search(r"<think>(.*?)</think>", prediction, flags=re.DOTALL)
-                if think_match and self._cot_uncertainty_scorer is not None:
-                    thought_trace = think_match.group(1).strip()
-                    logger.info("CoT trace detected. Computing uncertainty without resampling.")
-                    y_prob = self._cot_uncertainty_scorer.score(thought_trace)
-                # Fallback to self-consistency resampling if no CoT trace or scorer
-                elif self._self_consistency_samples > 0:
+                if self._self_consistency_samples > 0:
                     logger.info("Falling back to self-consistency resampling.")
                     sampled_preds = self._model.generate_n(
                         prompt, n=self._self_consistency_samples, temperature=0.7
