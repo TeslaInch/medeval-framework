@@ -18,6 +18,8 @@ report_*.json
 report_*.md
 checkpoint_*.jsonl
 *.html
+!web/**/*.html
+!web/index.html
 *comparison_matrix.md
 
 # PDFs and raw generated docs
@@ -30,3 +32,4 @@ examples/
 scratch/
 example.py
 moment-of-truth-eh.ipynb
+/trial
